@@ -1,0 +1,112 @@
+@extends('layouts.admin')
+
+@section('title', 'Inventario')
+@section('breadcrumb')
+    <li class="breadcrumb-item active">Inventario</li>
+@endsection
+
+@section('content')
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0"><i class="bi bi-table me-2 text-primary"></i>Registro Inventario</h4>
+    <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','user_id'])) }}"
+       class="btn btn-success">
+        <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
+    </a>
+</div>
+
+{{-- Filters --}}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ route('admin.inventory.index') }}" class="row g-3 align-items-end">
+            <div class="col-6 col-md-3">
+                <label class="form-label fw-semibold small">Dal</label>
+                <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label fw-semibold small">Al</label>
+                <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold small">Magazzino</label>
+                <select name="warehouse_id" class="form-select">
+                    <option value="">Tutti</option>
+                    @foreach($warehouses as $w)
+                        <option value="{{ $w->id }}" {{ request('warehouse_id') == $w->id ? 'selected' : '' }}>{{ $w->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold small">Operatore</label>
+                <select name="user_id" class="form-select">
+                    <option value="">Tutti</option>
+                    @foreach($operators as $u)
+                        <option value="{{ $u->id }}" {{ request('user_id') == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-funnel me-1"></i>Filtra</button>
+                <a href="{{ route('admin.inventory.index') }}" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- Results count --}}
+<div class="text-muted small mb-2">
+    {{ $records->total() }} record trovati
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 table-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>Data/Ora</th>
+                    <th>Operatore</th>
+                    <th>Magazzino / Area</th>
+                    <th>Codice</th>
+                    <th>Descrizione</th>
+                    <th>UM</th>
+                    <th>Lotto</th>
+                    <th class="text-end">Quantità</th>
+                    <th>DB</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($records as $record)
+                <tr>
+                    <td class="text-nowrap small">{{ $record->created_at->format('d/m/Y H:i') }}</td>
+                    <td>{{ $record->user?->name }}</td>
+                    <td class="small">
+                        <div class="fw-semibold">{{ $record->warehouse?->name }}</div>
+                        <div class="text-muted">{{ $record->area?->name }}</div>
+                    </td>
+                    <td><code class="small">{{ $record->article_code }}</code></td>
+                    <td class="small">{{ Str::limit($record->description, 40) }}</td>
+                    <td><span class="badge bg-light text-dark">{{ $record->um }}</span></td>
+                    <td class="small text-muted">{{ $record->lot }}</td>
+                    <td class="text-end fw-bold">{{ number_format($record->quantity, 2, ',', '.') }}</td>
+                    <td>
+                        @if($record->db_source === 'sqlsrv')
+                            <span class="badge bg-primary" title="SQL Server">SQL</span>
+                        @elseif($record->db_source === 'access')
+                            <span class="badge bg-info text-dark" title="Access">ACC</span>
+                        @else
+                            <span class="badge bg-warning text-dark">N/T</span>
+                        @endif
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="9" class="text-center text-muted py-4">Nessun record trovato.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+    @if($records->hasPages())
+    <div class="card-footer bg-white">
+        {{ $records->links() }}
+    </div>
+    @endif
+</div>
+@endsection
