@@ -22,4 +22,9 @@ class Warehouse extends Model
     {
         return $this->hasMany(Area::class)->where('active', true);
     }
+
+    public function inventoryRecords()
+    {
+        return $this->hasMany(InventoryRecord::class);
+    }
 }
