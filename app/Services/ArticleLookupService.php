@@ -3,79 +3,143 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use PDO;
 use Throwable;
 
 class ArticleLookupService
 {
-    public function lookup(string $articleCode, string $lot): array
+    /**
+     * Lookup an article from the raw scanned lot string.
+     *
+     * Lot format with '.' → ingredient: "5789.14026.734" → IDIngrediente = "5789" (T_INGREDIENTI)
+     * Lot format with '-' → product:    "8055-14026280"  → IDProdottoAziendale = "8055" (T_PRODOTTI)
+     *
+     * Strategy: SQL Server (MagProgrLotto) first, Access fallback.
+     */
+    public function lookup(string $scannedLot): array
     {
-        $empty = [
+        $scannedLot = trim($scannedLot);
+        [$id, $type] = $this->parseLot($scannedLot);
+
+        // 1. SQL Server
+        $result = $this->lookupSqlServer($scannedLot, $id);
+        if ($result['found']) {
+            return $result;
+        }
+
+        // 2. Access fallback
+        $result = $this->lookupAccess($scannedLot, $id, $type);
+        if ($result['found']) {
+            return $result;
+        }
+
+        return [
             'found'        => false,
             'source'       => 'not_found',
-            'article_code' => $articleCode,
+            'article_code' => $id,
             'description'  => '',
             'um'           => '',
-            'lot'          => $lot,
+            'lot'          => $scannedLot,
+            'lot_match'    => false,
         ];
+    }
 
-        // --- SQL Server attempt ---
+    // -------------------------------------------------------------------------
+
+    private function parseLot(string $lot): array
+    {
+        if (str_contains($lot, '.')) {
+            return [explode('.', $lot)[0], 'ingrediente'];
+        }
+        if (str_contains($lot, '-')) {
+            return [explode('-', $lot)[0], 'prodotto'];
+        }
+        return [$lot, 'unknown'];
+    }
+
+    private function lookupSqlServer(string $fullLot, string $id): array
+    {
         try {
-            $table   = env('SQLSRV_TABLE_ARTICLES', 'articles');
-            $colCode = env('SQLSRV_COL_CODE', 'code');
-            $colDesc = env('SQLSRV_COL_DESC', 'description');
-            $colUm   = env('SQLSRV_COL_UM', 'um');
-            $colLot  = env('SQLSRV_COL_LOT', 'lot');
-
-            $row = DB::connection('articles_sqlsrv')
-                ->table($table)
-                ->where($colCode, $articleCode)
-                ->where($colLot, $lot)
+            $lotRow = DB::connection('articles_sqlsrv')
+                ->table('MagProgrLotto')
+                ->where('RifLottoAlfab', $fullLot)
                 ->first();
 
-            if ($row) {
-                $rowArr = (array) $row;
-                return [
-                    'found'        => true,
-                    'source'       => 'sqlsrv',
-                    'article_code' => $rowArr[$colCode] ?? $articleCode,
-                    'description'  => $rowArr[$colDesc] ?? '',
-                    'um'           => $rowArr[$colUm]   ?? '',
-                    'lot'          => $rowArr[$colLot]  ?? $lot,
-                ];
+            if (! $lotRow) {
+                return ['found' => false];
             }
-        } catch (Throwable) {
-            // SQL Server not reachable in dev – fall through to Access
-        }
 
-        // --- Access / ODBC fallback ---
+            $codArt = $lotRow->CodArt ?? $id;
+
+            return [
+                'found'        => true,
+                'source'       => 'sqlsrv',
+                'article_code' => $codArt,
+                'description'  => '',
+                'um'           => '',
+                'lot'          => $fullLot,
+                'lot_match'    => true,
+            ];
+        } catch (Throwable) {
+            return ['found' => false];
+        }
+    }
+
+    private function lookupAccess(string $fullLot, string $id, string $type): array
+    {
         try {
-            $table   = env('ACCESS_TABLE_ARTICLES', 'articles');
-            $colCode = env('ACCESS_COL_CODE', 'code');
-            $colDesc = env('ACCESS_COL_DESC', 'description');
-            $colUm   = env('ACCESS_COL_UM', 'um');
-            $colLot  = env('ACCESS_COL_LOT', 'lot');
+            $dsn      = env('ACCESS_DSN', '');
+            $username = env('ACCESS_USERNAME', '') ?: null;
+            $password = env('ACCESS_PASSWORD', '') ?: null;
 
-            $row = DB::connection('articles_access')
-                ->table($table)
-                ->where($colCode, $articleCode)
-                ->where($colLot, $lot)
-                ->first();
+            $pdo = new PDO('odbc:' . $dsn, $username, $password);
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-            if ($row) {
-                $rowArr = (array) $row;
-                return [
-                    'found'        => true,
-                    'source'       => 'access',
-                    'article_code' => $rowArr[$colCode] ?? $articleCode,
-                    'description'  => $rowArr[$colDesc] ?? '',
-                    'um'           => $rowArr[$colUm]   ?? '',
-                    'lot'          => $rowArr[$colLot]  ?? $lot,
-                ];
+            if ($type === 'ingrediente') {
+                $stmt = $pdo->prepare(
+                    'SELECT [IDIngrediente], [Nome commerc Ingrediente], [CodGestionale]
+                     FROM [T_INGREDIENTI]
+                     WHERE [IDIngrediente] = ?'
+                );
+                $stmt->execute([$id]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($row) {
+                    return [
+                        'found'        => true,
+                        'source'       => 'access',
+                        'article_code' => $row['CodGestionale'] ?? $row['IDIngrediente'] ?? $id,
+                        'description'  => $row['Nome commerc Ingrediente'] ?? '',
+                        'um'           => '',
+                        'lot'          => $fullLot,
+                        'lot_match'    => true,
+                    ];
+                }
+            } elseif ($type === 'prodotto') {
+                $stmt = $pdo->prepare(
+                    'SELECT [IDProdottoAziendale], [Nome commerciale PA]
+                     FROM [T_PRODOTTI]
+                     WHERE [IDProdottoAziendale] = ?'
+                );
+                $stmt->execute([$id]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($row) {
+                    return [
+                        'found'        => true,
+                        'source'       => 'access',
+                        'article_code' => $row['IDProdottoAziendale'] ?? $id,
+                        'description'  => $row['Nome commerciale PA'] ?? '',
+                        'um'           => '',
+                        'lot'          => $fullLot,
+                        'lot_match'    => true,
+                    ];
+                }
             }
         } catch (Throwable) {
-            // Access not reachable in dev – return not_found
+            // Access non raggiungibile o query fallita
         }
 
-        return $empty;
+        return ['found' => false];
     }
 }

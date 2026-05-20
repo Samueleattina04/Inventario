@@ -58,18 +58,11 @@ class ScanController extends Controller
     public function lookupArticle(Request $request)
     {
         $request->validate([
-            'article_code' => 'required|string|max:255',
-            'lot'          => 'nullable|string|max:255',
-            'scan_type'    => 'required|in:qr,barcode',
+            'lot'       => 'required|string|max:255',
+            'scan_type' => 'required|in:qr,barcode',
         ]);
 
-        $articleCode = trim($request->article_code);
-        $lot         = trim($request->lot ?? '');
-
-        $service = app(ArticleLookupService::class);
-        $result  = $service->lookup($articleCode, $lot);
-
-        $result['lot_match'] = $result['found'] && ($result['lot'] === $lot);
+        $result = app(ArticleLookupService::class)->lookup(trim($request->lot));
 
         return response()->json($result);
     }

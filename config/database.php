@@ -112,18 +112,19 @@ return [
             'prefix_indexes' => true,
         ],
 
-        // SQL Server esterno per lookup articoli
+        // SQL Server esterno per lookup articoli (named instance, nessuna porta)
         'articles_sqlsrv' => [
-            'driver' => 'sqlsrv',
-            'host' => env('SQLSRV_HOST', '127.0.0.1'),
-            'port' => env('SQLSRV_PORT', '1433'),
-            'database' => env('SQLSRV_DATABASE', 'GestionaleProd'),
-            'username' => env('SQLSRV_USERNAME', 'sa'),
+            'driver'   => 'sqlsrv',
+            'host'     => env('SQLSRV_HOST'),
+            'port'     => env('SQLSRV_PORT') ?: null,
+            'database' => env('SQLSRV_DATABASE'),
+            'username' => env('SQLSRV_USERNAME'),
             'password' => env('SQLSRV_PASSWORD', ''),
-            'charset' => 'utf8',
-            'prefix' => '',
-            'prefix_indexes' => true,
-            'trust_server_certificate' => true,
+            'charset'  => 'utf8',
+            'prefix'   => '',
+            'prefix_indexes'          => true,
+            'trust_server_certificate'=> true,
+            'encrypt'                 => false,
         ],
 
         // Access esterno via ODBC per lookup articoli (fallback)

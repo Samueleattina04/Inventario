@@ -128,17 +128,12 @@
                         </div>
 
                         <hr class="my-2">
-                        <p class="text-muted small text-center mb-2">Oppure inserisci manualmente:</p>
+                        <p class="text-muted small text-center mb-2">Oppure inserisci manualmente il valore del lotto:</p>
 
-                        <div class="mb-2">
-                            <label class="form-label small fw-semibold">Codice Articolo</label>
-                            <input type="text" id="qr-article-code" class="form-control"
-                                placeholder="Codice articolo..." autocomplete="off">
-                        </div>
                         <div class="mb-3">
-                            <label class="form-label small fw-semibold">Lotto</label>
+                            <label class="form-label small fw-semibold">Valore lotto (es. 5789.14026.734)</label>
                             <input type="text" id="qr-lot" class="form-control"
-                                placeholder="Numero lotto..." autocomplete="off">
+                                placeholder="Valore scansionato..." autocomplete="off">
                         </div>
                         <button class="btn btn-success btn-scan-action w-100" onclick="manualLookup('qr')">
                             <i class="bi bi-search me-2"></i>Cerca Articolo
@@ -162,17 +157,12 @@
                         </div>
 
                         <hr class="my-2">
-                        <p class="text-muted small text-center mb-2">Oppure inserisci manualmente:</p>
+                        <p class="text-muted small text-center mb-2">Oppure inserisci manualmente il valore del lotto:</p>
 
-                        <div class="mb-2">
-                            <label class="form-label small fw-semibold">Codice Articolo</label>
-                            <input type="text" id="barcode-article-code" class="form-control"
-                                placeholder="Codice articolo..." autocomplete="off">
-                        </div>
                         <div class="mb-3">
-                            <label class="form-label small fw-semibold">Lotto</label>
+                            <label class="form-label small fw-semibold">Valore lotto (es. 8055-14026280)</label>
                             <input type="text" id="barcode-lot" class="form-control"
-                                placeholder="Numero lotto..." autocomplete="off">
+                                placeholder="Valore scansionato..." autocomplete="off">
                         </div>
                         <button class="btn btn-success btn-scan-action w-100" onclick="manualLookup('barcode')">
                             <i class="bi bi-search me-2"></i>Cerca Articolo
@@ -308,43 +298,20 @@ function onScanSuccess(decodedText, decodedResult, expectedType) {
         return;
     }
 
-    // Stop scanner after successful read
     stopScanner(expectedType);
-
-    // Use scanned text as lot; no separate article code from scan alone
-    // For QR: treat the raw string as the combined value
-    // For simplicity, treat entire scanned text as lot; article code stays from manual field
-    const articleCodeField = document.getElementById(expectedType === 'qr' ? 'qr-article-code' : 'barcode-article-code');
-    const lotField = document.getElementById(expectedType === 'qr' ? 'qr-lot' : 'barcode-lot');
-
-    // If article code not filled, put scanned text there; otherwise use as lot
-    if (!articleCodeField.value.trim()) {
-        articleCodeField.value = decodedText;
-    } else {
-        lotField.value = decodedText;
-    }
-
-    // Auto-lookup if we have article code
-    if (articleCodeField.value.trim()) {
-        doLookup(articleCodeField.value.trim(), lotField.value.trim(), expectedType);
-    } else {
-        showToast('Codice scansionato. Inserisci il codice articolo se necessario.', 'info');
-    }
+    doLookup(decodedText, expectedType);
 }
 
 function manualLookup(type) {
-    const articleCode = document.getElementById(type === 'qr' ? 'qr-article-code' : 'barcode-article-code').value.trim();
-    const lot = document.getElementById(type === 'qr' ? 'qr-lot' : 'barcode-lot').value.trim();
-
-    if (!articleCode) {
-        showToast('Inserisci il codice articolo.', 'warning');
+    const lot = document.getElementById(type + '-lot').value.trim();
+    if (!lot) {
+        showToast('Inserisci il valore del lotto.', 'warning');
         return;
     }
-
-    doLookup(articleCode, lot, type);
+    doLookup(lot, type);
 }
 
-async function doLookup(articleCode, lot, scanType) {
+async function doLookup(lotValue, scanType) {
     setLoading(true);
     document.getElementById('notFoundPanel').classList.add('d-none');
 
@@ -356,14 +323,13 @@ async function doLookup(articleCode, lot, scanType) {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ article_code: articleCode, lot: lot, scan_type: scanType }),
+            body: JSON.stringify({ lot: lotValue, scan_type: scanType }),
         });
 
         const data = await resp.json();
         setLoading(false);
 
         if (data.found) {
-            // Redirect to article page
             const params = new URLSearchParams({
                 article_code: data.article_code,
                 description:  data.description,
@@ -374,11 +340,10 @@ async function doLookup(articleCode, lot, scanType) {
             });
             window.location.href = '{{ route('article') }}?' + params.toString();
         } else {
-            // Show override panel
-            document.getElementById('override-code').value = articleCode;
+            document.getElementById('override-code').value = lotValue;
             document.getElementById('override-desc').value = '';
             document.getElementById('override-um').value = '';
-            lastScanData = { article_code: articleCode, lot: lot, db_source: 'not_found' };
+            lastScanData = { article_code: lotValue, lot: lotValue, db_source: 'not_found' };
             document.getElementById('notFoundPanel').classList.remove('d-none');
             document.getElementById('notFoundPanel').scrollIntoView({ behavior: 'smooth' });
         }
