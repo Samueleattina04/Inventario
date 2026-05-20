@@ -90,9 +90,9 @@ class ArticleLookupService
     private function lookupAccess(string $fullLot, string $id, string $type): array
     {
         try {
-            $dsn      = env('ACCESS_DSN', '');
-            $username = env('ACCESS_USERNAME', '') ?: null;
-            $password = env('ACCESS_PASSWORD', '') ?: null;
+            $dsn      = config('database.access_odbc.dsn', '');
+            $username = config('database.access_odbc.username', '') ?: null;
+            $password = config('database.access_odbc.password', '') ?: null;
 
             $pdo = new PDO('odbc:' . $dsn, $username, $password);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);

@@ -129,14 +129,21 @@ return [
 
         // Access esterno via ODBC per lookup articoli (fallback)
         'articles_access' => [
-            'driver' => 'odbc',
-            'dsn' => env('ACCESS_DSN', ''),
+            'driver'   => 'odbc',
+            'dsn'      => env('ACCESS_DSN', ''),
             'username' => env('ACCESS_USERNAME', ''),
             'password' => env('ACCESS_PASSWORD', ''),
-            'charset' => 'utf8',
-            'prefix' => '',
+            'charset'  => 'utf8',
+            'prefix'   => '',
         ],
 
+    ],
+
+    // Configurazione diretta Access ODBC per il servizio di lookup
+    'access_odbc' => [
+        'dsn'      => env('ACCESS_DSN', ''),
+        'username' => env('ACCESS_USERNAME', ''),
+        'password' => env('ACCESS_PASSWORD', ''),
     ],
 
     /*
