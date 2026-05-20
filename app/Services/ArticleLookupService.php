@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PDO;
 use Throwable;
 
@@ -80,7 +81,8 @@ class ArticleLookupService
                 'lot'          => $fullLot,
                 'lot_match'    => true,
             ];
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            Log::error('ArticleLookup SQL Server error', ['lot' => $fullLot, 'error' => $e->getMessage()]);
             return ['found' => false];
         }
     }
@@ -136,8 +138,8 @@ class ArticleLookupService
                     ];
                 }
             }
-        } catch (Throwable) {
-            // Access non raggiungibile o query fallita
+        } catch (Throwable $e) {
+            Log::error('ArticleLookup Access error', ['lot' => $fullLot, 'id' => $id, 'type' => $type, 'dsn' => env('ACCESS_DSN'), 'error' => $e->getMessage()]);
         }
 
         return ['found' => false];
