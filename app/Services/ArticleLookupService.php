@@ -99,7 +99,7 @@ class ArticleLookupService
 
             if ($type === 'ingrediente') {
                 $stmt = $pdo->prepare(
-                    'SELECT [IDIngrediente], [Nome commerc Ingrediente], [CodGestionale]
+                    'SELECT [IDIngrediente], [Nome comerc Ingrediente], [CodGestionale]
                      FROM [T_INGREDIENTI]
                      WHERE [IDIngrediente] = ?'
                 );
@@ -111,7 +111,7 @@ class ArticleLookupService
                         'found'        => true,
                         'source'       => 'access',
                         'article_code' => $row['CodGestionale'] ?? $row['IDIngrediente'] ?? $id,
-                        'description'  => $row['Nome commerc Ingrediente'] ?? '',
+                        'description'  => $row['Nome comerc Ingrediente'] ?? '',
                         'um'           => '',
                         'lot'          => $fullLot,
                         'lot_match'    => true,
@@ -119,7 +119,7 @@ class ArticleLookupService
                 }
             } elseif ($type === 'prodotto') {
                 $stmt = $pdo->prepare(
-                    'SELECT [IDProdottoAziendale], [Nome commerciale PA]
+                    'SELECT [IDProdottoAziendale], [Nome commerciale PA], [CodGestionale], [CodiceAziendale]
                      FROM [T_PRODOTTI]
                      WHERE [IDProdottoAziendale] = ?'
                 );
@@ -130,7 +130,7 @@ class ArticleLookupService
                     return [
                         'found'        => true,
                         'source'       => 'access',
-                        'article_code' => $row['IDProdottoAziendale'] ?? $id,
+                        'article_code' => $row['CodGestionale'] ?: ($row['CodiceAziendale'] ?? $row['IDProdottoAziendale'] ?? $id),
                         'description'  => $row['Nome commerciale PA'] ?? '',
                         'um'           => '',
                         'lot'          => $fullLot,
