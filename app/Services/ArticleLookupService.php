@@ -9,26 +9,28 @@ use Throwable;
 
 class ArticleLookupService
 {
-    /**
-     * Lookup an article from the raw scanned lot string.
-     *
-     * Lot format with '.' → ingredient: "5789.14026.734" → IDIngrediente = "5789" (T_INGREDIENTI)
-     * Lot format with '-' → product:    "8055-14026280"  → IDProdottoAziendale = "8055" (T_PRODOTTI)
-     *
-     * Strategy: SQL Server (MagProgrLotto) first, Access fallback.
-     */
     public function lookup(string $scannedLot): array
     {
         $scannedLot = trim($scannedLot);
         [$id, $type] = $this->parseLot($scannedLot);
 
-        // 1. SQL Server
+        if ($type === 'invalid') {
+            return [
+                'found'        => false,
+                'source'       => 'not_found',
+                'article_code' => '',
+                'description'  => '',
+                'um'           => '',
+                'lot'          => $scannedLot,
+                'lot_match'    => false,
+            ];
+        }
+
         $result = $this->lookupSqlServer($scannedLot, $id);
         if ($result['found']) {
             return $result;
         }
 
-        // 2. Access fallback
         $result = $this->lookupAccess($scannedLot, $id, $type);
         if ($result['found']) {
             return $result;
@@ -45,17 +47,80 @@ class ArticleLookupService
         ];
     }
 
+    /**
+     * Search articles in Access by code or description.
+     * Returns up to 40 results from T_INGREDIENTI + T_PRODOTTI.
+     */
+    public function searchArticles(string $query): array
+    {
+        if (strlen($query) < 2) {
+            return [];
+        }
+
+        $results = [];
+
+        try {
+            $pdo  = $this->accessPdo();
+            $like = '%' . $query . '%';
+
+            $stmt = $pdo->prepare(
+                "SELECT [IDIngrediente], [Nome comerc Ingrediente], [CodGestionale], [UM]
+                 FROM [T_INGREDIENTI]
+                 WHERE [CodGestionale] LIKE ? OR [Nome comerc Ingrediente] LIKE ?
+                 ORDER BY [CodGestionale]"
+            );
+            $stmt->execute([$like, $like]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $results[] = [
+                    'code'        => $row['CodGestionale'] ?: (string) $row['IDIngrediente'],
+                    'description' => $row['Nome comerc Ingrediente'] ?? '',
+                    'um_label'    => $this->resolveUm($row['UM']),
+                    'type'        => 'ingrediente',
+                ];
+            }
+
+            $stmt = $pdo->prepare(
+                "SELECT [IDProdottoAziendale], [Nome commerciale PA], [CodGestionale], [CodiceAziendale], [unimis]
+                 FROM [T_PRODOTTI]
+                 WHERE [CodGestionale] LIKE ? OR [CodiceAziendale] LIKE ? OR [Nome commerciale PA] LIKE ?
+                 ORDER BY [CodiceAziendale]"
+            );
+            $stmt->execute([$like, $like, $like]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $code = $row['CodGestionale'] ?: ($row['CodiceAziendale'] ?: (string) $row['IDProdottoAziendale']);
+                $results[] = [
+                    'code'        => $code,
+                    'description' => $row['Nome commerciale PA'] ?? '',
+                    'um_label'    => $this->resolveUm($row['unimis']),
+                    'type'        => 'prodotto',
+                ];
+            }
+        } catch (Throwable $e) {
+            Log::error('ArticleSearch error', ['q' => $query, 'error' => $e->getMessage()]);
+        }
+
+        return array_slice($results, 0, 40);
+    }
+
     // -------------------------------------------------------------------------
 
     private function parseLot(string $lot): array
     {
         if (str_contains($lot, '.')) {
-            return [explode('.', $lot)[0], 'ingrediente'];
+            $parts = explode('.', $lot, 2);
+            if ($parts[0] !== '' && ($parts[1] ?? '') !== '') {
+                return [$parts[0], 'ingrediente'];
+            }
+            return [$lot, 'invalid'];
         }
         if (str_contains($lot, '-')) {
-            return [explode('-', $lot)[0], 'prodotto'];
+            $parts = explode('-', $lot, 2);
+            if ($parts[0] !== '' && ($parts[1] ?? '') !== '') {
+                return [$parts[0], 'prodotto'];
+            }
+            return [$lot, 'invalid'];
         }
-        return [$lot, 'unknown'];
+        return [$lot, 'invalid'];
     }
 
     private function lookupSqlServer(string $fullLot, string $id): array
@@ -70,12 +135,10 @@ class ArticleLookupService
                 return ['found' => false];
             }
 
-            $codArt = $lotRow->CodArt ?? $id;
-
             return [
                 'found'        => true,
                 'source'       => 'sqlsrv',
-                'article_code' => $codArt,
+                'article_code' => $lotRow->CodArt ?? $id,
                 'description'  => '',
                 'um'           => '',
                 'lot'          => $fullLot,
@@ -90,16 +153,11 @@ class ArticleLookupService
     private function lookupAccess(string $fullLot, string $id, string $type): array
     {
         try {
-            $dsn      = config('database.access_odbc.dsn', '');
-            $username = config('database.access_odbc.username', '') ?: null;
-            $password = config('database.access_odbc.password', '') ?: null;
-
-            $pdo = new PDO('odbc:' . $dsn, $username, $password);
-            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $pdo = $this->accessPdo();
 
             if ($type === 'ingrediente') {
                 $stmt = $pdo->prepare(
-                    'SELECT [IDIngrediente], [Nome comerc Ingrediente], [CodGestionale]
+                    'SELECT [IDIngrediente], [Nome comerc Ingrediente], [CodGestionale], [UM]
                      FROM [T_INGREDIENTI]
                      WHERE [IDIngrediente] = ?'
                 );
@@ -112,14 +170,14 @@ class ArticleLookupService
                         'source'       => 'access',
                         'article_code' => $row['CodGestionale'] ?? $row['IDIngrediente'] ?? $id,
                         'description'  => $row['Nome comerc Ingrediente'] ?? '',
-                        'um'           => '',
+                        'um'           => $this->resolveUm($row['UM']),
                         'lot'          => $fullLot,
                         'lot_match'    => true,
                     ];
                 }
             } elseif ($type === 'prodotto') {
                 $stmt = $pdo->prepare(
-                    'SELECT [IDProdottoAziendale], [Nome commerciale PA], [CodGestionale], [CodiceAziendale]
+                    'SELECT [IDProdottoAziendale], [Nome commerciale PA], [CodGestionale], [CodiceAziendale], [unimis]
                      FROM [T_PRODOTTI]
                      WHERE [IDProdottoAziendale] = ?'
                 );
@@ -132,16 +190,37 @@ class ArticleLookupService
                         'source'       => 'access',
                         'article_code' => $row['CodGestionale'] ?: ($row['CodiceAziendale'] ?? $row['IDProdottoAziendale'] ?? $id),
                         'description'  => $row['Nome commerciale PA'] ?? '',
-                        'um'           => '',
+                        'um'           => $this->resolveUm($row['unimis']),
                         'lot'          => $fullLot,
                         'lot_match'    => true,
                     ];
                 }
             }
         } catch (Throwable $e) {
-            Log::error('ArticleLookup Access error', ['lot' => $fullLot, 'id' => $id, 'type' => $type, 'dsn' => env('ACCESS_DSN'), 'error' => $e->getMessage()]);
+            Log::error('ArticleLookup Access error', ['lot' => $fullLot, 'id' => $id, 'type' => $type, 'error' => $e->getMessage()]);
         }
 
         return ['found' => false];
+    }
+
+    private function accessPdo(): PDO
+    {
+        $dsn      = config('database.access_odbc.dsn', '');
+        $username = config('database.access_odbc.username', '') ?: null;
+        $password = config('database.access_odbc.password', '') ?: null;
+
+        $pdo = new PDO('odbc:' . $dsn, $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        return $pdo;
+    }
+
+    /**
+     * Map UM integer IDs to unit labels.
+     * Values are configurable in config/inventory.php (um_map key).
+     */
+    private function resolveUm(mixed $umId): string
+    {
+        $map = config('inventory.um_map', []);
+        return $map[(int) $umId] ?? 'PZ';
     }
 }

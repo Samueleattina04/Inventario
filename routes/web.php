@@ -22,7 +22,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/scan',      [ScanController::class, 'scanner'])->name('scan');
     Route::get('/article',   [ScanController::class, 'showArticle'])->name('article');
     Route::post('/inventory', [ScanController::class, 'saveRecord'])->name('inventory.save');
-    Route::post('/api/article-lookup', [ScanController::class, 'lookupArticle'])->name('api.article-lookup');
+    Route::post('/api/article-lookup',   [ScanController::class, 'lookupArticle'])->name('api.article-lookup');
+    Route::get('/api/articles/search',   [ScanController::class, 'searchArticles'])->name('api.articles.search');
 });
 
 // Admin routes

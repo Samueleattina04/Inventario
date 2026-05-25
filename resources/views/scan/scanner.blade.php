@@ -3,67 +3,19 @@
 @section('title', 'Scanner')
 
 @section('extra-styles')
-#qr-reader, #barcode-reader {
-    width: 100% !important;
-    border-radius: 12px;
-    overflow: hidden;
-}
-#qr-reader video, #barcode-reader video {
-    border-radius: 12px;
-}
-.scanner-box {
-    background: #000;
-    border-radius: 12px;
-    min-height: 220px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    position: relative;
-}
-.scanner-overlay {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 180px;
-    height: 180px;
-    border: 3px solid #fff;
-    border-radius: 12px;
-    pointer-events: none;
-    z-index: 10;
-}
-.scanner-overlay::before,
-.scanner-overlay::after {
-    content: '';
-    position: absolute;
-    width: 30px;
-    height: 30px;
-    border-color: #0d6efd;
-    border-style: solid;
-}
-.scanner-overlay::before {
-    top: -3px; left: -3px;
-    border-width: 4px 0 0 4px;
-    border-radius: 6px 0 0 0;
-}
-.scanner-overlay::after {
-    bottom: -3px; right: -3px;
-    border-width: 0 4px 4px 0;
-    border-radius: 0 0 6px 0;
-}
+#qr-reader { width: 100% !important; border-radius: 12px; overflow: hidden; }
+#qr-reader video { border-radius: 12px; }
 .toast-container { z-index: 9999; }
-.nav-tabs .nav-link { min-height: 44px; font-size: 1rem; font-weight: 500; }
-.manual-input-group input { min-height: 48px; font-size: 1rem; }
 .btn-scan-action { min-height: 52px; font-size: 1.05rem; }
-#startQrBtn, #stopQrBtn, #startBarcodeBtn, #stopBarcodeBtn {
-    min-height: 48px;
-}
+#startQrBtn, #stopQrBtn { min-height: 48px; }
+.article-result-item { cursor: pointer; border: 2px solid transparent; transition: .15s; }
+.article-result-item:hover, .article-result-item.selected { border-color: #0d6efd; background: #f0f5ff; }
+.lot-badge { font-size: 1rem; font-weight: 600; letter-spacing: .03em; }
 @endsection
 
 @section('content')
 
-{{-- Toast container --}}
+{{-- Toast --}}
 <div class="toast-container position-fixed top-0 end-0 p-3">
     <div id="scanToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
@@ -73,11 +25,11 @@
     </div>
 </div>
 
-{{-- Loading overlay --}}
+{{-- Loading --}}
 <div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background:rgba(0,0,0,0.5); z-index:2000;">
     <div class="text-center text-white">
         <div class="spinner-border mb-2" role="status"></div>
-        <div>Ricerca articolo...</div>
+        <div>Ricerca in corso...</div>
     </div>
 </div>
 
@@ -87,114 +39,87 @@
         {{-- Location bar --}}
         <div class="alert alert-primary py-2 mb-3 d-flex align-items-center gap-2">
             <i class="bi bi-geo-alt-fill fs-5"></i>
-            <div>
-                <strong>{{ $warehouseName }}</strong> &rarr; <strong>{{ $areaName }}</strong>
-            </div>
+            <div><strong>{{ $warehouseName }}</strong> &rarr; <strong>{{ $areaName }}</strong></div>
             <a href="{{ route('location') }}" class="btn btn-sm btn-outline-primary ms-auto">
                 <i class="bi bi-pencil-square"></i> Cambia
             </a>
         </div>
 
-        {{-- Tabs --}}
-        <ul class="nav nav-tabs nav-fill mb-3" id="scannerTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="qr-tab" data-bs-toggle="tab" data-bs-target="#qr-panel"
-                    type="button" role="tab" aria-controls="qr-panel" aria-selected="true">
-                    <i class="bi bi-qr-code me-1"></i>QR Code
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="barcode-tab" data-bs-toggle="tab" data-bs-target="#barcode-panel"
-                    type="button" role="tab" aria-controls="barcode-panel" aria-selected="false">
-                    <i class="bi bi-upc-scan me-1"></i>Codice a Barre
-                </button>
-            </li>
-        </ul>
+        {{-- Scanner card --}}
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-3">
 
-        <div class="tab-content">
-
-            {{-- ====== QR TAB ====== --}}
-            <div class="tab-pane fade show active" id="qr-panel" role="tabpanel">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body p-3">
-                        <div id="qr-reader" class="mb-3"></div>
-                        <div class="d-flex gap-2 mb-3">
-                            <button id="startQrBtn" class="btn btn-primary flex-fill" onclick="startScanner('qr')">
-                                <i class="bi bi-camera-fill me-1"></i>Avvia Camera
-                            </button>
-                            <button id="stopQrBtn" class="btn btn-secondary flex-fill d-none" onclick="stopScanner('qr')">
-                                <i class="bi bi-camera-video-off me-1"></i>Ferma
-                            </button>
-                        </div>
-
-                        <hr class="my-2">
-                        <p class="text-muted small text-center mb-2">Oppure inserisci manualmente il valore del lotto:</p>
-
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Valore lotto (es. 5789.14026.734)</label>
-                            <input type="text" id="qr-lot" class="form-control"
-                                placeholder="Valore scansionato..." autocomplete="off">
-                        </div>
-                        <button class="btn btn-success btn-scan-action w-100" onclick="manualLookup('qr')">
-                            <i class="bi bi-search me-2"></i>Cerca Articolo
-                        </button>
-                    </div>
+                {{-- Camera QR --}}
+                <div id="qr-reader" class="mb-3" style="display:none;"></div>
+                <div class="d-flex gap-2 mb-3">
+                    <button id="startQrBtn" class="btn btn-outline-primary flex-fill" onclick="startScanner()">
+                        <i class="bi bi-qr-code-scan me-1"></i>Scansiona QR con Camera
+                    </button>
+                    <button id="stopQrBtn" class="btn btn-outline-secondary flex-fill d-none" onclick="stopScanner()">
+                        <i class="bi bi-camera-video-off me-1"></i>Ferma Camera
+                    </button>
                 </div>
-            </div>
 
-            {{-- ====== BARCODE TAB ====== --}}
-            <div class="tab-pane fade" id="barcode-panel" role="tabpanel">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body p-3">
-                        <div id="barcode-reader" class="mb-3"></div>
-                        <div class="d-flex gap-2 mb-3">
-                            <button id="startBarcodeBtn" class="btn btn-primary flex-fill" onclick="startScanner('barcode')">
-                                <i class="bi bi-camera-fill me-1"></i>Avvia Camera
-                            </button>
-                            <button id="stopBarcodeBtn" class="btn btn-secondary flex-fill d-none" onclick="stopScanner('barcode')">
-                                <i class="bi bi-camera-video-off me-1"></i>Ferma
-                            </button>
-                        </div>
+                <hr class="my-2">
 
-                        <hr class="my-2">
-                        <p class="text-muted small text-center mb-2">Oppure inserisci manualmente il valore del lotto:</p>
-
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Valore lotto (es. 8055-14026280)</label>
-                            <input type="text" id="barcode-lot" class="form-control"
-                                placeholder="Valore scansionato..." autocomplete="off">
-                        </div>
-                        <button class="btn btn-success btn-scan-action w-100" onclick="manualLookup('barcode')">
-                            <i class="bi bi-search me-2"></i>Cerca Articolo
-                        </button>
-                    </div>
+                {{-- Lot input (also receives barcode scanner input) --}}
+                <label class="form-label fw-semibold">Lotto (scanner o inserimento manuale)</label>
+                <div class="input-group mb-2">
+                    <input type="text" id="lotInput" class="form-control form-control-lg"
+                        placeholder="Es. 5108-14026280 oppure 5789.14026.734"
+                        autocomplete="off" autocorrect="off" spellcheck="false">
+                    <button class="btn btn-primary px-3" onclick="manualLookup()">
+                        <i class="bi bi-search"></i>
+                    </button>
                 </div>
+                <small class="text-muted">Il formato lotto deve essere completo (con trattino o punto)</small>
+
             </div>
+        </div>
 
-        </div>{{-- /tab-content --}}
-
-        {{-- Not-found override panel (hidden by default) --}}
-        <div id="notFoundPanel" class="card border-warning border-2 shadow-sm mt-3 d-none">
+        {{-- Not-found panel --}}
+        <div id="notFoundPanel" class="card border-warning border-2 shadow-sm d-none">
             <div class="card-header bg-warning text-dark fw-bold">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>Articolo non trovato in nessun database
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>Lotto non trovato nel database
             </div>
             <div class="card-body p-3">
-                <p class="text-muted small">Puoi inserire manualmente le informazioni mancanti:</p>
-                <div class="mb-2">
-                    <label class="form-label small fw-semibold">Codice Articolo</label>
-                    <input type="text" id="override-code" class="form-control" readonly>
-                </div>
-                <div class="mb-2">
-                    <label class="form-label small fw-semibold">Descrizione *</label>
-                    <input type="text" id="override-desc" class="form-control" placeholder="Inserisci descrizione...">
-                </div>
+
                 <div class="mb-3">
-                    <label class="form-label small fw-semibold">Unità di Misura</label>
-                    <input type="text" id="override-um" class="form-control" placeholder="es. PZ, KG, MT...">
+                    <label class="form-label small fw-semibold text-muted">Lotto inserito</label>
+                    <div class="lot-badge text-primary" id="notFoundLot"></div>
                 </div>
-                <button class="btn btn-warning w-100 fw-bold" onclick="proceedWithOverride()">
-                    <i class="bi bi-arrow-right-circle me-2"></i>Continua con questi dati
-                </button>
+
+                <p class="text-muted small mb-2">Cerca il codice articolo manualmente:</p>
+
+                {{-- Article search --}}
+                <div class="input-group mb-2">
+                    <input type="text" id="articleSearchInput" class="form-control"
+                        placeholder="Cerca per codice o descrizione..." autocomplete="off">
+                    <button class="btn btn-outline-secondary" onclick="searchArticles()">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+
+                <div id="articleSearchResults" class="mb-3" style="max-height:220px; overflow-y:auto;"></div>
+
+                {{-- Selected article + quantity --}}
+                <div id="selectedArticlePanel" class="d-none">
+                    <div class="alert alert-success py-2 mb-3">
+                        <strong id="selectedCode"></strong>
+                        <div class="small text-muted" id="selectedDesc"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" id="quantityLabel">Quantità</label>
+                        <input type="number" id="overrideQty" class="form-control form-control-lg text-center"
+                            step="0.001" min="0" placeholder="0">
+                    </div>
+
+                    <button class="btn btn-warning w-100 fw-bold btn-scan-action" onclick="proceedWithOverride()">
+                        <i class="bi bi-arrow-right-circle me-2"></i>Continua
+                    </button>
+                </div>
+
             </div>
         </div>
 
@@ -206,114 +131,63 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 let qrScanner = null;
-let barcodeScanner = null;
-let activeTab = 'qr';
-let lastScanData = {};
+let lastLot = '';
+let selectedArticle = null;
+let searchTimeout = null;
 
-const BARCODE_FORMATS = [
-    Html5QrcodeSupportedFormats.EAN_13,
-    Html5QrcodeSupportedFormats.EAN_8,
-    Html5QrcodeSupportedFormats.CODE_128,
-    Html5QrcodeSupportedFormats.CODE_39,
-    Html5QrcodeSupportedFormats.UPC_A,
-    Html5QrcodeSupportedFormats.UPC_E,
-    Html5QrcodeSupportedFormats.ITF,
-    Html5QrcodeSupportedFormats.CODABAR,
-];
-
-const QR_FORMATS = [Html5QrcodeSupportedFormats.QR_CODE];
-
+// ── Toast ──────────────────────────────────────────────────────────────────
 function showToast(message, type = 'danger') {
     const toast = document.getElementById('scanToast');
-    const msg = document.getElementById('toastMessage');
     toast.className = `toast align-items-center text-white border-0 bg-${type}`;
-    msg.textContent = message;
-    const bsToast = bootstrap.Toast.getOrCreateInstance(toast, { delay: 4000 });
-    bsToast.show();
+    document.getElementById('toastMessage').textContent = message;
+    bootstrap.Toast.getOrCreateInstance(toast, { delay: 4000 }).show();
 }
 
 function setLoading(show) {
-    const overlay = document.getElementById('loadingOverlay');
-    overlay.classList.toggle('d-none', !show);
-    overlay.classList.toggle('d-flex', show);
+    const el = document.getElementById('loadingOverlay');
+    el.classList.toggle('d-none', !show);
+    el.classList.toggle('d-flex', show);
 }
 
-async function startScanner(type) {
-    const readerId = type === 'qr' ? 'qr-reader' : 'barcode-reader';
-    const formats = type === 'qr' ? QR_FORMATS : BARCODE_FORMATS;
-
-    const startBtn = document.getElementById(type === 'qr' ? 'startQrBtn' : 'startBarcodeBtn');
-    const stopBtn  = document.getElementById(type === 'qr' ? 'stopQrBtn' : 'stopBarcodeBtn');
-
-    const scanner = new Html5Qrcode(readerId);
-    if (type === 'qr') qrScanner = scanner;
-    else barcodeScanner = scanner;
-
+// ── Camera QR ──────────────────────────────────────────────────────────────
+async function startScanner() {
+    const reader = document.getElementById('qr-reader');
+    reader.style.display = '';
+    qrScanner = new Html5Qrcode('qr-reader');
     try {
-        await scanner.start(
+        await qrScanner.start(
             { facingMode: 'environment' },
-            {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                formatsToSupport: formats,
-            },
-            (decodedText, decodedResult) => onScanSuccess(decodedText, decodedResult, type),
+            { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
+            (decodedText) => { stopScanner(); doLookup(decodedText); },
             () => {}
         );
-        startBtn.classList.add('d-none');
-        stopBtn.classList.remove('d-none');
+        document.getElementById('startQrBtn').classList.add('d-none');
+        document.getElementById('stopQrBtn').classList.remove('d-none');
     } catch (err) {
+        reader.style.display = 'none';
         showToast('Impossibile avviare la camera: ' + err, 'danger');
     }
 }
 
-async function stopScanner(type) {
-    const scanner = type === 'qr' ? qrScanner : barcodeScanner;
-    if (!scanner) return;
-
-    try {
-        await scanner.stop();
-        scanner.clear();
-    } catch (e) {}
-
-    if (type === 'qr') qrScanner = null;
-    else barcodeScanner = null;
-
-    const startBtn = document.getElementById(type === 'qr' ? 'startQrBtn' : 'startBarcodeBtn');
-    const stopBtn  = document.getElementById(type === 'qr' ? 'stopQrBtn' : 'stopBarcodeBtn');
-    startBtn.classList.remove('d-none');
-    stopBtn.classList.add('d-none');
+async function stopScanner() {
+    if (!qrScanner) return;
+    try { await qrScanner.stop(); qrScanner.clear(); } catch (e) {}
+    qrScanner = null;
+    document.getElementById('qr-reader').style.display = 'none';
+    document.getElementById('startQrBtn').classList.remove('d-none');
+    document.getElementById('stopQrBtn').classList.add('d-none');
 }
 
-function onScanSuccess(decodedText, decodedResult, expectedType) {
-    const format = decodedResult.result.format.formatName;
-    const isQr = format === 'QR_CODE';
-
-    if (expectedType === 'qr' && !isQr) {
-        showToast("Errore: hai scansionato un codice a barre. Usa la scheda 'Codice a Barre'.", 'danger');
-        return;
-    }
-    if (expectedType === 'barcode' && isQr) {
-        showToast("Errore: hai scansionato un QR Code. Usa la scheda 'QR Code'.", 'danger');
-        return;
-    }
-
-    stopScanner(expectedType);
-    doLookup(decodedText, expectedType);
+// ── Lookup ─────────────────────────────────────────────────────────────────
+function manualLookup() {
+    const lot = document.getElementById('lotInput').value.trim();
+    if (!lot) { showToast('Inserisci il valore del lotto.', 'warning'); return; }
+    doLookup(lot);
 }
 
-function manualLookup(type) {
-    const lot = document.getElementById(type + '-lot').value.trim();
-    if (!lot) {
-        showToast('Inserisci il valore del lotto.', 'warning');
-        return;
-    }
-    doLookup(lot, type);
-}
-
-async function doLookup(lotValue, scanType) {
+async function doLookup(lotValue) {
     setLoading(true);
-    document.getElementById('notFoundPanel').classList.add('d-none');
+    hideNotFound();
 
     try {
         const resp = await fetch('{{ route('api.article-lookup') }}', {
@@ -323,7 +197,7 @@ async function doLookup(lotValue, scanType) {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ lot: lotValue, scan_type: scanType }),
+            body: JSON.stringify({ lot: lotValue, scan_type: 'unified' }),
         });
 
         const data = await resp.json();
@@ -340,12 +214,7 @@ async function doLookup(lotValue, scanType) {
             });
             window.location.href = '{{ route('article') }}?' + params.toString();
         } else {
-            document.getElementById('override-code').value = lotValue;
-            document.getElementById('override-desc').value = '';
-            document.getElementById('override-um').value = '';
-            lastScanData = { article_code: lotValue, lot: lotValue, db_source: 'not_found' };
-            document.getElementById('notFoundPanel').classList.remove('d-none');
-            document.getElementById('notFoundPanel').scrollIntoView({ behavior: 'smooth' });
+            showNotFound(lotValue);
         }
     } catch (err) {
         setLoading(false);
@@ -353,30 +222,105 @@ async function doLookup(lotValue, scanType) {
     }
 }
 
-function proceedWithOverride() {
-    const desc = document.getElementById('override-desc').value.trim();
-    if (!desc) {
-        showToast('Inserisci una descrizione.', 'warning');
-        return;
+// ── Not-found panel ────────────────────────────────────────────────────────
+function showNotFound(lot) {
+    lastLot = lot;
+    document.getElementById('notFoundLot').textContent = lot;
+    document.getElementById('notFoundPanel').classList.remove('d-none');
+    document.getElementById('notFoundPanel').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('articleSearchInput').value = '';
+    document.getElementById('articleSearchResults').innerHTML = '';
+    document.getElementById('selectedArticlePanel').classList.add('d-none');
+    selectedArticle = null;
+}
+
+function hideNotFound() {
+    document.getElementById('notFoundPanel').classList.add('d-none');
+}
+
+// ── Article search ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('articleSearchInput').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const q = this.value.trim();
+        if (q.length < 2) {
+            document.getElementById('articleSearchResults').innerHTML = '';
+            return;
+        }
+        searchTimeout = setTimeout(() => searchArticles(), 400);
+    });
+
+    document.getElementById('articleSearchInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); searchArticles(); }
+    });
+
+    // Auto-submit on Enter in lot input (barcode scanner sends Enter)
+    document.getElementById('lotInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); manualLookup(); }
+    });
+
+    document.getElementById('lotInput').focus();
+});
+
+async function searchArticles() {
+    const q = document.getElementById('articleSearchInput').value.trim();
+    if (q.length < 2) return;
+
+    const container = document.getElementById('articleSearchResults');
+    container.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div></div>';
+
+    try {
+        const resp = await fetch('{{ route('api.articles.search') }}?q=' + encodeURIComponent(q), {
+            headers: { 'Accept': 'application/json' },
+        });
+        const data = await resp.json();
+
+        if (!data.length) {
+            container.innerHTML = '<p class="text-muted small text-center py-2">Nessun risultato.</p>';
+            return;
+        }
+
+        container.innerHTML = data.map(a => `
+            <div class="article-result-item p-2 rounded mb-1 border"
+                 onclick="selectArticle(${JSON.stringify(a).replace(/"/g, '&quot;')})">
+                <div class="fw-semibold small">${a.code}</div>
+                <div class="text-muted" style="font-size:.8rem;">${a.description}</div>
+                <span class="badge bg-secondary">${a.um_label}</span>
+            </div>
+        `).join('');
+    } catch (err) {
+        container.innerHTML = '<p class="text-danger small text-center py-2">Errore nella ricerca.</p>';
     }
+}
+
+function selectArticle(article) {
+    selectedArticle = article;
+
+    document.querySelectorAll('.article-result-item').forEach(el => el.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+
+    document.getElementById('selectedCode').textContent = article.code;
+    document.getElementById('selectedDesc').textContent = article.description;
+    document.getElementById('quantityLabel').textContent = `Quantità (${article.um_label})`;
+    document.getElementById('overrideQty').value = '';
+    document.getElementById('selectedArticlePanel').classList.remove('d-none');
+    document.getElementById('overrideQty').focus();
+}
+
+function proceedWithOverride() {
+    if (!selectedArticle) { showToast('Seleziona un articolo.', 'warning'); return; }
+    const qty = parseFloat(document.getElementById('overrideQty').value);
+    if (!qty || qty <= 0) { showToast('Inserisci una quantità valida.', 'warning'); return; }
+
     const params = new URLSearchParams({
-        article_code: lastScanData.article_code,
-        description:  desc,
-        um:           document.getElementById('override-um').value.trim(),
-        lot:          lastScanData.lot,
+        article_code: selectedArticle.code,
+        description:  selectedArticle.description,
+        um:           selectedArticle.um_label,
+        lot:          lastLot,
         db_source:    'not_found',
         lot_match:    '0',
     });
     window.location.href = '{{ route('article') }}?' + params.toString();
 }
-
-// Stop active scanner when switching tabs
-document.querySelectorAll('#scannerTabs [data-bs-toggle="tab"]').forEach(tab => {
-    tab.addEventListener('hide.bs.tab', function(e) {
-        const targetId = e.target.id;
-        if (targetId === 'qr-tab' && qrScanner) stopScanner('qr');
-        if (targetId === 'barcode-tab' && barcodeScanner) stopScanner('barcode');
-    });
-});
 </script>
 @endsection

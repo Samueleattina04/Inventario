@@ -59,12 +59,21 @@ class ScanController extends Controller
     {
         $request->validate([
             'lot'       => 'required|string|max:255',
-            'scan_type' => 'required|in:qr,barcode',
+            'scan_type' => 'required|in:qr,barcode,unified',
         ]);
 
         $result = app(ArticleLookupService::class)->lookup(trim($request->lot));
 
         return response()->json($result);
+    }
+
+    public function searchArticles(Request $request)
+    {
+        $request->validate(['q' => 'required|string|min:2|max:100']);
+
+        $results = app(ArticleLookupService::class)->searchArticles(trim($request->q));
+
+        return response()->json($results);
     }
 
     public function showArticle(Request $request)
