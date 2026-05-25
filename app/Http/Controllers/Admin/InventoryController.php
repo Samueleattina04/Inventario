@@ -29,6 +29,16 @@ class InventoryController extends Controller
         if ($request->filled('user_id')) {
             $query->where('user_id', $request->user_id);
         }
+        if ($request->filled('source')) {
+            match ($request->source) {
+                'sqlsrv'    => $query->where(function ($q) {
+                                    $q->where('db_source', 'sqlsrv')->orWhere('db_source', 'sqlsrv+access');
+                                }),
+                'access'    => $query->where('db_source', 'access'),
+                'not_found' => $query->where('db_source', 'not_found'),
+                default     => null,
+            };
+        }
 
         $records    = $query->paginate(30)->withQueryString();
         $warehouses = Warehouse::orderBy('name')->get();
@@ -39,7 +49,7 @@ class InventoryController extends Controller
 
     public function export(Request $request)
     {
-        $filters = $request->only(['date_from', 'date_to', 'warehouse_id', 'user_id']);
+        $filters = $request->only(['date_from', 'date_to', 'warehouse_id', 'user_id', 'source']);
         $filename = 'inventario_' . now()->format('Ymd_His') . '.xlsx';
         return Excel::download(new InventoryExport($filters), $filename);
     }

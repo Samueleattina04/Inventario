@@ -40,11 +40,11 @@ class InventoryRecord extends Model
 
     public function getDbSourceLabelAttribute(): string
     {
-        return match ($this->db_source) {
-            'sqlsrv'    => 'SQL Server',
-            'access'    => 'Access',
-            'not_found' => 'Non trovato',
-            default     => $this->db_source,
+        return match (true) {
+            str_starts_with($this->db_source ?? '', 'sqlsrv') => 'SQL Server',
+            $this->db_source === 'access'                     => 'Access',
+            $this->db_source === 'not_found'                  => 'Non trovato',
+            default                                           => $this->db_source ?? '',
         };
     }
 }

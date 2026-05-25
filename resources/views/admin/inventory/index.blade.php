@@ -8,16 +8,33 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0"><i class="bi bi-table me-2 text-primary"></i>Registro Inventario</h4>
-    <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','user_id'])) }}"
+    <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','user_id','source'])) }}"
        class="btn btn-success">
         <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
     </a>
+</div>
+
+{{-- Source quick-filter buttons --}}
+<div class="d-flex gap-2 mb-3 flex-wrap">
+    @php $activeSource = request('source', ''); @endphp
+    @foreach([
+        ''          => ['label' => 'Tutti',       'class' => 'btn-secondary'],
+        'sqlsrv'    => ['label' => 'SQL Server',   'class' => 'btn-primary'],
+        'access'    => ['label' => 'Access',       'class' => 'btn-info text-dark'],
+        'not_found' => ['label' => 'Non trovati',  'class' => 'btn-warning text-dark'],
+    ] as $val => $opt)
+        <a href="{{ route('admin.inventory.index') }}?{{ http_build_query(array_merge(request()->only(['date_from','date_to','warehouse_id','user_id']), ['source' => $val])) }}"
+           class="btn btn-sm {{ $activeSource === $val ? $opt['class'] : 'btn-outline-'.explode('-',$opt['class'])[1] }}">
+            {{ $opt['label'] }}
+        </a>
+    @endforeach
 </div>
 
 {{-- Filters --}}
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
         <form method="GET" action="{{ route('admin.inventory.index') }}" class="row g-3 align-items-end">
+            <input type="hidden" name="source" value="{{ request('source') }}">
             <div class="col-6 col-md-3">
                 <label class="form-label fw-semibold small">Dal</label>
                 <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
@@ -88,12 +105,14 @@
                     <td class="small text-muted">{{ $record->lot }}</td>
                     <td class="text-end fw-bold">{{ number_format($record->quantity, 2, ',', '.') }}</td>
                     <td>
-                        @if($record->db_source === 'sqlsrv')
+                        @if(str_starts_with($record->db_source ?? '', 'sqlsrv'))
                             <span class="badge bg-primary" title="SQL Server">SQL</span>
                         @elseif($record->db_source === 'access')
                             <span class="badge bg-info text-dark" title="Access">ACC</span>
+                        @elseif($record->db_source === 'not_found')
+                            <span class="badge bg-warning text-dark" title="Non trovato">N/T</span>
                         @else
-                            <span class="badge bg-warning text-dark">N/T</span>
+                            <span class="badge bg-secondary">{{ $record->db_source }}</span>
                         @endif
                     </td>
                 </tr>
