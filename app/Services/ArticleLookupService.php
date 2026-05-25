@@ -9,48 +9,226 @@ use Throwable;
 
 class ArticleLookupService
 {
-    public function lookup(string $scannedLot): array
+    // ── Entry point ───────────────────────────────────────────────────────────
+
+    public function lookup(string $scanned): array
     {
-        $scannedLot = trim($scannedLot);
-        [$id, $type] = $this->parseLot($scannedLot);
+        $scanned = trim($scanned);
+
+        // QR format:  {digits}{CodGestionale}#{lotId}  e.g. 241PISTACCSGUSCINTEROESTE-SL#102712
+        if (str_contains($scanned, '#')) {
+            return $this->lookupQr($scanned);
+        }
+
+        // Barcode/manual format:  {id}.{rest}  or  {id}-{rest}
+        [$id, $type] = $this->parseLot($scanned);
 
         if ($type === 'invalid') {
+            return $this->notFound($scanned);
+        }
+
+        $result = $this->lookupEsolverByFullLot($scanned, $id);
+        if ($result['found']) {
+            return $result;
+        }
+
+        $result = $this->lookupAccessById($scanned, $id, $type);
+        if ($result['found']) {
+            return $result;
+        }
+
+        return $this->notFound($scanned);
+    }
+
+    // ── QR lookup ─────────────────────────────────────────────────────────────
+
+    private function lookupQr(string $scanned): array
+    {
+        [$articlePart, $lotPart] = explode('#', $scanned, 2);
+
+        // Strip leading digits (date prefix) to get CodGestionale
+        $codGestionale = ltrim($articlePart, '0123456789');
+
+        // Strip first 2 chars from lot to get Esolver RifLottoAlfab
+        $esolverLot = strlen($lotPart) > 2 ? substr($lotPart, 2) : $lotPart;
+
+        // 1. Look up article in Access by CodGestionale (exact match → description + UM)
+        $accessResult = $this->lookupAccessByCodGestionale($codGestionale, $scanned);
+
+        // 2. Look up lot in Esolver to get the canonical CodArt
+        $esolverCodArt = $this->lookupEsolverLot($esolverLot);
+
+        if ($accessResult['found']) {
+            // Prefer Esolver CodArt as article_code when found
+            if ($esolverCodArt) {
+                $accessResult['article_code'] = $esolverCodArt;
+                $accessResult['source']       = 'sqlsrv+access';
+            }
+            return $accessResult;
+        }
+
+        if ($esolverCodArt) {
             return [
-                'found'        => false,
-                'source'       => 'not_found',
-                'article_code' => '',
+                'found'        => true,
+                'source'       => 'sqlsrv',
+                'article_code' => $esolverCodArt,
                 'description'  => '',
                 'um'           => '',
-                'lot'          => $scannedLot,
-                'lot_match'    => false,
+                'lot'          => $scanned,
+                'lot_match'    => true,
             ];
         }
 
-        $result = $this->lookupSqlServer($scannedLot, $id);
-        if ($result['found']) {
-            return $result;
-        }
-
-        $result = $this->lookupAccess($scannedLot, $id, $type);
-        if ($result['found']) {
-            return $result;
-        }
-
-        return [
-            'found'        => false,
-            'source'       => 'not_found',
-            'article_code' => $id,
-            'description'  => '',
-            'um'           => '',
-            'lot'          => $scannedLot,
-            'lot_match'    => false,
-        ];
+        return $this->notFound($scanned);
     }
 
-    /**
-     * Search articles in Access by code or description.
-     * Returns up to 40 results from T_INGREDIENTI + T_PRODOTTI.
-     */
+    // ── Barcode / manual lookup ───────────────────────────────────────────────
+
+    private function lookupEsolverByFullLot(string $fullLot, string $id): array
+    {
+        try {
+            $row = DB::connection('articles_sqlsrv')
+                ->table('MagProgrLotto')
+                ->where('RifLottoAlfab', $fullLot)
+                ->first();
+
+            if ($row) {
+                return [
+                    'found'        => true,
+                    'source'       => 'sqlsrv',
+                    'article_code' => $row->CodArt ?? $id,
+                    'description'  => '',
+                    'um'           => '',
+                    'lot'          => $fullLot,
+                    'lot_match'    => true,
+                ];
+            }
+        } catch (Throwable $e) {
+            Log::error('ArticleLookup Esolver error', ['lot' => $fullLot, 'error' => $e->getMessage()]);
+        }
+
+        return ['found' => false];
+    }
+
+    private function lookupAccessById(string $fullLot, string $id, string $type): array
+    {
+        try {
+            $pdo = $this->accessPdo();
+
+            if ($type === 'ingrediente') {
+                $stmt = $pdo->prepare(
+                    'SELECT [IDIngrediente],[Nome comerc Ingrediente],[CodGestionale],[UM]
+                     FROM [T_INGREDIENTI] WHERE [IDIngrediente] = ?'
+                );
+                $stmt->execute([$id]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($row) {
+                    return [
+                        'found'        => true,
+                        'source'       => 'access',
+                        'article_code' => $row['CodGestionale'] ?? $id,
+                        'description'  => $row['Nome comerc Ingrediente'] ?? '',
+                        'um'           => $this->resolveUm($row['UM']),
+                        'lot'          => $fullLot,
+                        'lot_match'    => true,
+                    ];
+                }
+            } elseif ($type === 'prodotto') {
+                $stmt = $pdo->prepare(
+                    'SELECT [IDProdottoAziendale],[Nome commerciale PA],[CodGestionale],[CodiceAziendale],[unimis]
+                     FROM [T_PRODOTTI] WHERE [IDProdottoAziendale] = ?'
+                );
+                $stmt->execute([$id]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($row) {
+                    return [
+                        'found'        => true,
+                        'source'       => 'access',
+                        'article_code' => $row['CodGestionale'] ?: ($row['CodiceAziendale'] ?? $id),
+                        'description'  => $row['Nome commerciale PA'] ?? '',
+                        'um'           => $this->resolveUm($row['unimis']),
+                        'lot'          => $fullLot,
+                        'lot_match'    => true,
+                    ];
+                }
+            }
+        } catch (Throwable $e) {
+            Log::error('ArticleLookup Access error', ['lot' => $fullLot, 'id' => $id, 'error' => $e->getMessage()]);
+        }
+
+        return ['found' => false];
+    }
+
+    // ── QR helpers ────────────────────────────────────────────────────────────
+
+    private function lookupAccessByCodGestionale(string $codGestionale, string $fullLot): array
+    {
+        try {
+            $pdo = $this->accessPdo();
+
+            $stmt = $pdo->prepare(
+                'SELECT [IDIngrediente],[Nome comerc Ingrediente],[CodGestionale],[UM]
+                 FROM [T_INGREDIENTI] WHERE [CodGestionale] = ?'
+            );
+            $stmt->execute([$codGestionale]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($row) {
+                return [
+                    'found'        => true,
+                    'source'       => 'access',
+                    'article_code' => $row['CodGestionale'],
+                    'description'  => $row['Nome comerc Ingrediente'] ?? '',
+                    'um'           => $this->resolveUm($row['UM']),
+                    'lot'          => $fullLot,
+                    'lot_match'    => true,
+                ];
+            }
+
+            $stmt = $pdo->prepare(
+                'SELECT [IDProdottoAziendale],[Nome commerciale PA],[CodGestionale],[CodiceAziendale],[unimis]
+                 FROM [T_PRODOTTI] WHERE [CodGestionale] = ?'
+            );
+            $stmt->execute([$codGestionale]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($row) {
+                return [
+                    'found'        => true,
+                    'source'       => 'access',
+                    'article_code' => $row['CodGestionale'] ?: $row['CodiceAziendale'],
+                    'description'  => $row['Nome commerciale PA'] ?? '',
+                    'um'           => $this->resolveUm($row['unimis']),
+                    'lot'          => $fullLot,
+                    'lot_match'    => true,
+                ];
+            }
+        } catch (Throwable $e) {
+            Log::error('AccessLookupByCodGestionale error', ['cod' => $codGestionale, 'error' => $e->getMessage()]);
+        }
+
+        return ['found' => false];
+    }
+
+    private function lookupEsolverLot(string $esolverLot): ?string
+    {
+        try {
+            $row = DB::connection('articles_sqlsrv')
+                ->table('MagProgrLotto')
+                ->where('RifLottoAlfab', $esolverLot)
+                ->first();
+
+            return $row?->CodArt ?? null;
+        } catch (Throwable $e) {
+            Log::error('EsolverLotLookup error', ['lot' => $esolverLot, 'error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    // ── Article search (not-found panel) ─────────────────────────────────────
+
     public function searchArticles(string $query): array
     {
         if (strlen($query) < 2) {
@@ -64,7 +242,7 @@ class ArticleLookupService
             $like = '%' . $query . '%';
 
             $stmt = $pdo->prepare(
-                "SELECT [IDIngrediente], [Nome comerc Ingrediente], [CodGestionale], [UM]
+                "SELECT [IDIngrediente],[Nome comerc Ingrediente],[CodGestionale],[UM]
                  FROM [T_INGREDIENTI]
                  WHERE [CodGestionale] LIKE ? OR [Nome comerc Ingrediente] LIKE ?
                  ORDER BY [CodGestionale]"
@@ -80,7 +258,7 @@ class ArticleLookupService
             }
 
             $stmt = $pdo->prepare(
-                "SELECT [IDProdottoAziendale], [Nome commerciale PA], [CodGestionale], [CodiceAziendale], [unimis]
+                "SELECT [IDProdottoAziendale],[Nome commerciale PA],[CodGestionale],[CodiceAziendale],[unimis]
                  FROM [T_PRODOTTI]
                  WHERE [CodGestionale] LIKE ? OR [CodiceAziendale] LIKE ? OR [Nome commerciale PA] LIKE ?
                  ORDER BY [CodiceAziendale]"
@@ -102,7 +280,7 @@ class ArticleLookupService
         return array_slice($results, 0, 40);
     }
 
-    // -------------------------------------------------------------------------
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function parseLot(string $lot): array
     {
@@ -123,86 +301,6 @@ class ArticleLookupService
         return [$lot, 'invalid'];
     }
 
-    private function lookupSqlServer(string $fullLot, string $id): array
-    {
-        try {
-            $lotRow = DB::connection('articles_sqlsrv')
-                ->table('MagProgrLotto')
-                ->where('RifLottoAlfab', $fullLot)
-                ->first();
-
-            if (! $lotRow) {
-                return ['found' => false];
-            }
-
-            return [
-                'found'        => true,
-                'source'       => 'sqlsrv',
-                'article_code' => $lotRow->CodArt ?? $id,
-                'description'  => '',
-                'um'           => '',
-                'lot'          => $fullLot,
-                'lot_match'    => true,
-            ];
-        } catch (Throwable $e) {
-            Log::error('ArticleLookup SQL Server error', ['lot' => $fullLot, 'error' => $e->getMessage()]);
-            return ['found' => false];
-        }
-    }
-
-    private function lookupAccess(string $fullLot, string $id, string $type): array
-    {
-        try {
-            $pdo = $this->accessPdo();
-
-            if ($type === 'ingrediente') {
-                $stmt = $pdo->prepare(
-                    'SELECT [IDIngrediente], [Nome comerc Ingrediente], [CodGestionale], [UM]
-                     FROM [T_INGREDIENTI]
-                     WHERE [IDIngrediente] = ?'
-                );
-                $stmt->execute([$id]);
-                $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                if ($row) {
-                    return [
-                        'found'        => true,
-                        'source'       => 'access',
-                        'article_code' => $row['CodGestionale'] ?? $row['IDIngrediente'] ?? $id,
-                        'description'  => $row['Nome comerc Ingrediente'] ?? '',
-                        'um'           => $this->resolveUm($row['UM']),
-                        'lot'          => $fullLot,
-                        'lot_match'    => true,
-                    ];
-                }
-            } elseif ($type === 'prodotto') {
-                $stmt = $pdo->prepare(
-                    'SELECT [IDProdottoAziendale], [Nome commerciale PA], [CodGestionale], [CodiceAziendale], [unimis]
-                     FROM [T_PRODOTTI]
-                     WHERE [IDProdottoAziendale] = ?'
-                );
-                $stmt->execute([$id]);
-                $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                if ($row) {
-                    return [
-                        'found'        => true,
-                        'source'       => 'access',
-                        'article_code' => $row['CodGestionale'] ?: ($row['CodiceAziendale'] ?? $row['IDProdottoAziendale'] ?? $id),
-                        'description'  => $row['Nome commerciale PA'] ?? '',
-                        'um'           => $this->resolveUm($row['unimis']),
-                        'lot'          => $fullLot,
-                        'lot_match'    => true,
-                    ];
-                }
-            }
-        } catch (Throwable $e) {
-            Log::error('ArticleLookup Access error', ['lot' => $fullLot, 'id' => $id, 'type' => $type, 'error' => $e->getMessage()]);
-        }
-
-        return ['found' => false];
-    }
-
     private function accessPdo(): PDO
     {
         $dsn      = config('database.access_odbc.dsn', '');
@@ -214,13 +312,21 @@ class ArticleLookupService
         return $pdo;
     }
 
-    /**
-     * Map UM integer IDs to unit labels.
-     * Values are configurable in config/inventory.php (um_map key).
-     */
     private function resolveUm(mixed $umId): string
     {
-        $map = config('inventory.um_map', []);
-        return $map[(int) $umId] ?? 'PZ';
+        return config('inventory.um_map', [])[(int) $umId] ?? 'PZ';
+    }
+
+    private function notFound(string $lot): array
+    {
+        return [
+            'found'        => false,
+            'source'       => 'not_found',
+            'article_code' => '',
+            'description'  => '',
+            'um'           => '',
+            'lot'          => $lot,
+            'lot_match'    => false,
+        ];
     }
 }

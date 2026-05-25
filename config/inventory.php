@@ -11,7 +11,7 @@ return [
     'um_map' => [
         1 => 'PZ',
         2 => 'KG',
-        3 => 'KG',
+        3 => 'KG',  // confermato dal database (pistacchi, mandorle)
         4 => 'LT',
         5 => 'MT',
         6 => 'GR',
