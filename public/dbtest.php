@@ -2,106 +2,90 @@
 // FILE DI TEST TEMPORANEO - ELIMINARE DOPO L'USO
 echo '<pre>';
 
-$qrSamples = [
-    '241PISTACCSGUSCINTEROESTE-SL#102712',
-    '241USASGUSCROTT A#105279',
-];
+$accessDsn = 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};Dbq=\\\\192.168.3.208\\omni\\OMNITRACK1.3_be.accdb;';
 
-foreach ($qrSamples as $qr) {
-    echo "══════════════════════════════════════\n";
-    echo "QR: $qr\n";
-    echo "══════════════════════════════════════\n";
+try {
+    $pdo = new PDO('odbc:' . $accessDsn);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Parse
-    $parts      = explode('#', $qr, 2);
-    $articlePart = $parts[0] ?? '';
-    $lotPart     = $parts[1] ?? '';
-
-    // Extract leading digits from article part
-    preg_match('/^(\d+)/', $articlePart, $m);
-    $leadingId   = $m[1] ?? '';
-    $descPart    = ltrim($articlePart, '0123456789');
-
-    echo "  Parte articolo : '$articlePart'\n";
-    echo "  Parte lotto    : '$lotPart'\n";
-    echo "  ID numerico    : '$leadingId'\n";
-    echo "  Descrizione    : '$descPart'\n\n";
-
-    // ── SQL SERVER ──────────────────────────────────────────────────────────
-    echo "-- SQL Server --\n";
-    try {
-        $pdo = new PDO(
-            "sqlsrv:Server=SERVER2019\\SISTEMI;Database=ESOLVER;TrustServerCertificate=1;Encrypt=0",
-            'ricercalotti', 'RicercaLotti2024!'
-        );
-
-        // 1. Cerca lotto dopo #
-        $st = $pdo->prepare("SELECT TOP 3 CodArt, RifLottoAlfab FROM MagProgrLotto WHERE RifLottoAlfab = ?");
-        $st->execute([$lotPart]);
-        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
-        echo "  RifLottoAlfab='$lotPart'   → " . (count($rows) ? print_r($rows, true) : "nessun risultato\n");
-
-        // 2. Cerca lotto intero
-        $st = $pdo->prepare("SELECT TOP 3 CodArt, RifLottoAlfab FROM MagProgrLotto WHERE RifLottoAlfab = ?");
-        $st->execute([$qr]);
-        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
-        echo "  RifLottoAlfab='$qr'   → " . (count($rows) ? print_r($rows, true) : "nessun risultato\n");
-
-        // 3. Cerca CodArt con parte articolo
-        $st = $pdo->prepare("SELECT TOP 3 CodArt, RifLottoAlfab FROM MagProgrLotto WHERE CodArt = ?");
-        $st->execute([trim($articlePart)]);
-        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
-        echo "  CodArt='$articlePart' → " . (count($rows) ? print_r($rows, true) : "nessun risultato\n");
-
-        // 4. Cerca CodArt con ID numerico
-        if ($leadingId) {
-            $st = $pdo->prepare("SELECT TOP 3 CodArt, RifLottoAlfab FROM MagProgrLotto WHERE CodArt LIKE ?");
-            $st->execute([$leadingId . '%']);
-            $rows = $st->fetchAll(PDO::FETCH_ASSOC);
-            echo "  CodArt LIKE '$leadingId%'  → " . (count($rows) ? print_r($rows, true) : "nessun risultato\n");
-        }
-
-        // 5. Mostra prime righe MagProgrLotto per confronto
-        $st = $pdo->query("SELECT TOP 5 CodArt, RifLottoAlfab FROM MagProgrLotto ORDER BY RifLottoAlfab DESC");
-        echo "  Ultime righe MagProgrLotto:\n" . print_r($st->fetchAll(PDO::FETCH_ASSOC), true);
-
-    } catch (Throwable $e) {
-        echo "  ERRORE SQL Server: " . $e->getMessage() . "\n";
-    }
-
-    // ── ACCESS ──────────────────────────────────────────────────────────────
-    echo "\n-- Access --\n";
-    try {
-        $dsn = 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};Dbq=\\\\192.168.3.208\\omni\\OMNITRACK1.3_be.accdb;';
-        $pdo = new PDO('odbc:' . $dsn);
-
-        // 1. IDIngrediente = ID numerico
-        if ($leadingId) {
-            $st = $pdo->prepare("SELECT [IDIngrediente],[Nome comerc Ingrediente],[CodGestionale],[UM] FROM [T_INGREDIENTI] WHERE [IDIngrediente]=?");
-            $st->execute([$leadingId]);
-            $row = $st->fetch(PDO::FETCH_ASSOC);
-            echo "  T_INGREDIENTI IDIngrediente='$leadingId' → " . ($row ? print_r($row, true) : "nessun risultato\n");
-
-            $st = $pdo->prepare("SELECT [IDProdottoAziendale],[Nome commerciale PA],[CodGestionale],[CodiceAziendale],[unimis] FROM [T_PRODOTTI] WHERE [IDProdottoAziendale]=?");
-            $st->execute([$leadingId]);
-            $row = $st->fetch(PDO::FETCH_ASSOC);
-            echo "  T_PRODOTTI IDProdottoAziendale='$leadingId' → " . ($row ? print_r($row, true) : "nessun risultato\n");
-        }
-
-        // 2. Cerca per descrizione
-        if (strlen($descPart) >= 4) {
-            $like = '%' . substr($descPart, 0, 10) . '%';
-            $st = $pdo->prepare("SELECT TOP 3 [IDIngrediente],[Nome comerc Ingrediente],[CodGestionale] FROM [T_INGREDIENTI] WHERE [Nome comerc Ingrediente] LIKE ?");
-            $st->execute([$like]);
-            $rows = $st->fetchAll(PDO::FETCH_ASSOC);
-            echo "  T_INGREDIENTI desc LIKE '$like' → " . (count($rows) ? print_r($rows, true) : "nessun risultato\n");
-        }
-
-    } catch (Throwable $e) {
-        echo "  ERRORE Access: " . $e->getMessage() . "\n";
-    }
-
+    // ── 1. Elenca tutte le tabelle del database Access ──────────────────────
+    echo "=== TABELLE IN ACCESS ===\n";
+    $stmt = $pdo->query("SELECT MSysObjects.Name FROM MSysObjects WHERE MSysObjects.Type=1 AND MSysObjects.Flags=0 ORDER BY MSysObjects.Name");
+    $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($tables as $t) echo "  $t\n";
     echo "\n";
+
+    // ── 2. Cerca il numero lotto (102712) nelle tabelle più probabili ───────
+    $lotIds = ['102712', '105279'];
+    $probableTables = ['T_LOTTI', 'T_Lotti', 'Lotti', 'MagLotti', 'T_MOVIMENTI', 'T_SCARICHI', 'T_CARICHI', 'T_INVENTARIO'];
+
+    echo "=== CERCA LOTTI NELLE TABELLE ===\n";
+    foreach ($probableTables as $tbl) {
+        if (!in_array($tbl, $tables)) continue;
+        try {
+            $cols = $pdo->query("SELECT * FROM [$tbl] WHERE 1=0");
+            $colNames = [];
+            for ($i = 0; $i < $cols->columnCount(); $i++) {
+                $colNames[] = $cols->getColumnMeta($i)['name'];
+            }
+            echo "  [$tbl] colonne: " . implode(', ', $colNames) . "\n";
+
+            foreach ($lotIds as $lid) {
+                foreach ($colNames as $col) {
+                    try {
+                        $s = $pdo->prepare("SELECT TOP 1 * FROM [$tbl] WHERE [$col] = ?");
+                        $s->execute([$lid]);
+                        $row = $s->fetch(PDO::FETCH_ASSOC);
+                        if ($row) {
+                            echo "  TROVATO in [$tbl].[$col] = '$lid':\n";
+                            print_r($row);
+                        }
+                    } catch (Throwable) {}
+                }
+            }
+        } catch (Throwable $e) {
+            echo "  Errore [$tbl]: " . $e->getMessage() . "\n";
+        }
+    }
+
+    // ── 3. Cerca articolo per parte testuale del QR ─────────────────────────
+    echo "\n=== CERCA ARTICOLO PER TESTO QR ===\n";
+    $searches = [
+        'PISTACCSGUSCINTEROESTE',
+        'PISTACCSGU',
+        'USASGUSCROTT',
+    ];
+    foreach ($searches as $q) {
+        $like = '%' . $q . '%';
+        $s = $pdo->prepare("SELECT TOP 3 [IDIngrediente],[Nome comerc Ingrediente],[CodGestionale],[UM] FROM [T_INGREDIENTI] WHERE [CodGestionale] LIKE ? OR [Nome comerc Ingrediente] LIKE ?");
+        $s->execute([$like, $like]);
+        $rows = $s->fetchAll(PDO::FETCH_ASSOC);
+        echo "  Cerca '$q':\n";
+        if ($rows) print_r($rows); else echo "    nessun risultato\n";
+    }
+
+    // ── 4. Verifica CodGestionale su SQL Server ─────────────────────────────
+    echo "\n=== VERIFICA CodGestionale SU ESOLVER ===\n";
+    $codGest = ['MANSGUSPA', 'USASGUSCROTT-A-CIII'];
+    try {
+        $sqlPdo = new PDO("sqlsrv:Server=SERVER2019\\SISTEMI;Database=ESOLVER;TrustServerCertificate=1;Encrypt=0", 'ricercalotti', 'RicercaLotti2024!');
+        foreach ($codGest as $cod) {
+            $s = $sqlPdo->prepare("SELECT TOP 3 CodArt, RifLottoAlfab FROM MagProgrLotto WHERE CodArt = ?");
+            $s->execute([$cod]);
+            $rows = $s->fetchAll(PDO::FETCH_ASSOC);
+            echo "  CodArt='$cod': " . (count($rows) ? print_r($rows, true) : "nessun risultato\n");
+
+            $s = $sqlPdo->prepare("SELECT TOP 1 CodArt FROM MagProgrArticoli WHERE CodArt = ?");
+            $s->execute([$cod]);
+            $row = $s->fetch(PDO::FETCH_ASSOC);
+            echo "  MagProgrArticoli CodArt='$cod': " . ($row ? print_r($row, true) : "nessun risultato\n");
+        }
+    } catch (Throwable $e) {
+        echo "  Errore SQL Server: " . $e->getMessage() . "\n";
+    }
+
+} catch (Throwable $e) {
+    echo "ERRORE: " . $e->getMessage() . "\n";
 }
 
 echo '</pre>';
