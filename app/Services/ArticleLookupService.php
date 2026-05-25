@@ -46,37 +46,30 @@ class ArticleLookupService
     {
         [$articlePart, $lotPart] = explode('#', $scanned, 2);
 
-        // Strip leading digits (date prefix) to get CodGestionale
         $codGestionale = ltrim($articlePart, '0123456789');
+        $esolverLot    = strlen($lotPart) > 2 ? substr($lotPart, 2) : $lotPart;
 
-        // Strip first 2 chars from lot to get Esolver RifLottoAlfab
-        $esolverLot = strlen($lotPart) > 2 ? substr($lotPart, 2) : $lotPart;
+        // 1. Esolver: cerca lotto + CodArt esatto, o lotto univoco
+        $esolverCodArt = $this->lookupEsolverLot($esolverLot, $codGestionale);
 
-        // 1. Look up article in Access by CodGestionale (exact match → description + UM)
+        // 2. Access: cerca descrizione e UM per CodGestionale
         $accessResult = $this->lookupAccessByCodGestionale($codGestionale, $scanned);
 
-        // 2. Look up lot in Esolver to get the canonical CodArt
-        $esolverCodArt = $this->lookupEsolverLot($esolverLot);
-
-        if ($accessResult['found']) {
-            // Prefer Esolver CodArt as article_code when found
-            if ($esolverCodArt) {
-                $accessResult['article_code'] = $esolverCodArt;
-                $accessResult['source']       = 'sqlsrv+access';
-            }
-            return $accessResult;
-        }
-
         if ($esolverCodArt) {
+            // Esolver trovato: usa CodArt di Esolver, descrizione da Access se disponibile
             return [
                 'found'        => true,
-                'source'       => 'sqlsrv',
+                'source'       => $accessResult['found'] ? 'sqlsrv+access' : 'sqlsrv',
                 'article_code' => $esolverCodArt,
-                'description'  => '',
-                'um'           => '',
+                'description'  => $accessResult['description'] ?? '',
+                'um'           => $accessResult['um'] ?? '',
                 'lot'          => $scanned,
                 'lot_match'    => true,
             ];
+        }
+
+        if ($accessResult['found']) {
+            return $accessResult;
         }
 
         return $this->notFound($scanned);
@@ -212,15 +205,34 @@ class ArticleLookupService
         return ['found' => false];
     }
 
-    private function lookupEsolverLot(string $esolverLot): ?string
+    private function lookupEsolverLot(string $esolverLot, string $codGestionale = ''): ?string
     {
         try {
-            $row = DB::connection('articles_sqlsrv')
-                ->table('MagProgrLotto')
-                ->where('RifLottoAlfab', $esolverLot)
-                ->first();
+            $db = DB::connection('articles_sqlsrv')->table('MagProgrLotto');
 
-            return $row?->CodArt ?? null;
+            // 1. Exact match: lot + CodArt
+            if ($codGestionale !== '') {
+                $row = (clone $db)
+                    ->where('RifLottoAlfab', $esolverLot)
+                    ->where('CodArt', $codGestionale)
+                    ->first();
+
+                if ($row) {
+                    return $row->CodArt;
+                }
+            }
+
+            // 2. Lot-only match — safe only if result is unambiguous
+            $rows = (clone $db)
+                ->where('RifLottoAlfab', $esolverLot)
+                ->distinct()
+                ->pluck('CodArt');
+
+            if ($rows->count() === 1) {
+                return $rows->first();
+            }
+
+            return null;
         } catch (Throwable $e) {
             Log::error('EsolverLotLookup error', ['lot' => $esolverLot, 'error' => $e->getMessage()]);
             return null;
