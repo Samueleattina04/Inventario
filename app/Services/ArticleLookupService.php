@@ -49,8 +49,12 @@ class ArticleLookupService
         $codGestionale = ltrim($articlePart, '0123456789');
         $esolverLot    = strlen($lotPart) > 2 ? substr($lotPart, 2) : $lotPart;
 
+        Log::info('QR lookup', ['raw' => $scanned, 'cod_gestionale' => $codGestionale, 'esolver_lot' => $esolverLot]);
+
         // 1. Esolver: cerca lotto + CodArt esatto, o lotto univoco
         $esolverCodArt = $this->lookupEsolverLot($esolverLot, $codGestionale);
+
+        Log::info('QR Esolver result', ['esolver_cod_art' => $esolverCodArt]);
 
         // 2. Access: cerca descrizione e UM per CodGestionale
         $accessResult = $this->lookupAccessByCodGestionale($codGestionale, $scanned);
@@ -208,11 +212,10 @@ class ArticleLookupService
     private function lookupEsolverLot(string $esolverLot, string $codGestionale = ''): ?string
     {
         try {
-            $db = DB::connection('articles_sqlsrv')->table('MagProgrLotto');
-
-            // 1. Exact match: lot + CodArt
+            // 1. Exact match: lot + CodArt (fastest, unambiguous)
             if ($codGestionale !== '') {
-                $row = (clone $db)
+                $row = DB::connection('articles_sqlsrv')
+                    ->table('MagProgrLotto')
                     ->where('RifLottoAlfab', $esolverLot)
                     ->where('CodArt', $codGestionale)
                     ->first();
@@ -222,19 +225,35 @@ class ArticleLookupService
                 }
             }
 
-            // 2. Lot-only match — safe only if result is unambiguous
-            $rows = (clone $db)
+            // 2. Lot-only: retrieve all CodArt for this lot
+            $codArts = DB::connection('articles_sqlsrv')
+                ->table('MagProgrLotto')
                 ->where('RifLottoAlfab', $esolverLot)
                 ->distinct()
                 ->pluck('CodArt');
 
-            if ($rows->count() === 1) {
-                return $rows->first();
+            if ($codArts->isEmpty()) {
+                return null;
             }
 
+            // Prefer the one that starts with CodGestionale (partial match)
+            if ($codGestionale !== '') {
+                $preferred = $codArts->first(fn($c) => str_starts_with($c, $codGestionale) || str_starts_with($codGestionale, $c));
+                if ($preferred) {
+                    return $preferred;
+                }
+            }
+
+            // Unique result is always safe
+            if ($codArts->count() === 1) {
+                return $codArts->first();
+            }
+
+            // Multiple CodArt for same lot and no match with CodGestionale → ambiguous
+            Log::warning('EsolverLotLookup ambiguous', ['lot' => $esolverLot, 'cod_gestionale' => $codGestionale, 'codarts' => $codArts->all()]);
             return null;
         } catch (Throwable $e) {
-            Log::error('EsolverLotLookup error', ['lot' => $esolverLot, 'error' => $e->getMessage()]);
+            Log::error('EsolverLotLookup error', ['lot' => $esolverLot, 'cod_gestionale' => $codGestionale, 'error' => $e->getMessage()]);
             return null;
         }
     }
