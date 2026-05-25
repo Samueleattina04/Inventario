@@ -124,7 +124,7 @@ return [
             'prefix'   => '',
             'prefix_indexes'          => true,
             'trust_server_certificate'=> true,
-            'encrypt'                 => false,
+            'encrypt'                 => 0,
         ],
 
         // Access esterno via ODBC per lookup articoli (fallback)

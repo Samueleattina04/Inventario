@@ -158,7 +158,7 @@ async function startScanner() {
         await qrScanner.start(
             { facingMode: 'environment' },
             { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
-            (decodedText) => { stopScanner(); doLookup(decodedText); },
+            (decodedText) => { if (!qrScanner) return; stopScanner(); doLookup(decodedText); },
             () => {}
         );
         document.getElementById('startQrBtn').classList.add('d-none');
