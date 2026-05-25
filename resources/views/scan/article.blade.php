@@ -23,7 +23,7 @@
                         <i class="bi bi-exclamation-triangle-fill me-2"></i>Articolo non in DB
                     @else
                         <i class="bi bi-check-circle-fill me-2"></i>Articolo trovato
-                        <small class="ms-2 opacity-75">({{ $db_source === 'sqlsrv' ? 'SQL Server' : 'Access' }})</small>
+                        <small class="ms-2 opacity-75">({{ str_starts_with($db_source, 'sqlsrv') ? 'SQL Server' : 'Access' }})</small>
                     @endif
                 </span>
                 <a href="{{ route('scan') }}" class="btn btn-sm btn-light">
