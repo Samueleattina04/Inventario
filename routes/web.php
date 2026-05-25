@@ -38,6 +38,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('warehouses/{warehouse}/areas/{area}',    [WarehouseController::class, 'updateArea'])->name('warehouses.areas.update');
     Route::delete('warehouses/{warehouse}/areas/{area}', [WarehouseController::class, 'destroyArea'])->name('warehouses.areas.destroy');
 
-    Route::get('/inventory',        [InventoryController::class, 'index'])->name('inventory.index');
-    Route::get('/inventory/export', [InventoryController::class, 'export'])->name('inventory.export');
+    Route::get('/inventory',         [InventoryController::class, 'index'])->name('inventory.index');
+    Route::get('/inventory/grouped', [InventoryController::class, 'grouped'])->name('inventory.grouped');
+    Route::get('/inventory/export',  [InventoryController::class, 'export'])->name('inventory.export');
 });

@@ -8,10 +8,16 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0"><i class="bi bi-table me-2 text-primary"></i>Registro Inventario</h4>
-    <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','user_id','source'])) }}"
-       class="btn btn-success">
-        <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
-    </a>
+    <div class="d-flex gap-2">
+        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','user_id','source'])) }}"
+           class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-layers me-1"></i>Per Articolo
+        </a>
+        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','user_id','source'])) }}"
+           class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
+        </a>
+    </div>
 </div>
 
 {{-- Source quick-filter buttons --}}
