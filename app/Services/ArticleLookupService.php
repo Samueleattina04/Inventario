@@ -58,13 +58,13 @@ class ArticleLookupService
         $accessResult = $this->lookupAccessByCodGestionale($codGestionale, $scanned);
 
         if ($esolverCodArt) {
-            // Esolver trovato: usa CodArt di Esolver, descrizione da Access se disponibile
+            $esolverData = $this->getEsolverArticleData($esolverCodArt);
             return [
                 'found'        => true,
                 'source'       => $accessResult['found'] ? 'sqlsrv+access' : 'sqlsrv',
                 'article_code' => $esolverCodArt,
-                'description'  => $accessResult['description'] ?? '',
-                'um'           => $accessResult['um'] ?? '',
+                'description'  => $esolverData['description'] ?: ($accessResult['description'] ?? ''),
+                'um'           => $esolverData['um'] ?: ($accessResult['um'] ?? ''),
                 'lot'          => $esolverLot,
                 'lot_match'    => true,
             ];
@@ -89,12 +89,14 @@ class ArticleLookupService
                 ->first();
 
             if ($row) {
+                $codArt      = $row->CodArt ?? $id;
+                $esolverData = $this->getEsolverArticleData($codArt);
                 return [
                     'found'        => true,
                     'source'       => 'sqlsrv',
-                    'article_code' => $row->CodArt ?? $id,
-                    'description'  => '',
-                    'um'           => '',
+                    'article_code' => $codArt,
+                    'description'  => $esolverData['description'],
+                    'um'           => $esolverData['um'],
                     'lot'          => $fullLot,
                     'lot_match'    => true,
                 ];
@@ -255,6 +257,30 @@ class ArticleLookupService
             Log::error('EsolverLotLookup error', ['lot' => $esolverLot, 'cod_gestionale' => $codGestionale, 'error' => $e->getMessage()]);
             return null;
         }
+    }
+
+    // ── Esolver article master data ───────────────────────────────────────────
+
+    private function getEsolverArticleData(string $codArt): array
+    {
+        try {
+            $row = DB::connection('articles_sqlsrv')
+                ->table('ArtAnagrafica')
+                ->where('CodArt', $codArt)
+                ->select('DesArt', 'DesEstesa', 'MagUm')
+                ->first();
+
+            if ($row) {
+                return [
+                    'description' => trim($row->DesArt ?? '') ?: trim($row->DesEstesa ?? ''),
+                    'um'          => trim($row->MagUm ?? ''),
+                ];
+            }
+        } catch (Throwable $e) {
+            Log::error('EsolverArticleData error', ['cod' => $codArt, 'error' => $e->getMessage()]);
+        }
+
+        return ['description' => '', 'um' => ''];
     }
 
     // ── Article code direct lookup ────────────────────────────────────────────
