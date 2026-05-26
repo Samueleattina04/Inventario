@@ -67,13 +67,14 @@ class ArticleLookupService
                 'article_code' => $esolverCodArt,
                 'description'  => $accessResult['description'] ?? '',
                 'um'           => $accessResult['um'] ?? '',
-                'lot'          => $scanned,
+                'lot'          => $esolverLot,
                 'lot_match'    => true,
             ];
         }
 
         if ($accessResult['found']) {
-            return $accessResult;
+            // Access trovato: usa il lotto pulito (senza prefisso QR)
+            return array_merge($accessResult, ['lot' => $esolverLot]);
         }
 
         return $this->notFound($scanned);
