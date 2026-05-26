@@ -57,8 +57,10 @@ class ArticleLookupService
         // 2. Access: cerca descrizione e UM per CodGestionale
         $accessResult = $this->lookupAccessByCodGestionale($codGestionale, $scanned);
 
+        // Dati articolo da ArtAnagrafica (validi anche se il lotto non è in MagProgrLotto)
+        $esolverData = $this->getEsolverArticleData($esolverCodArt ?? $codGestionale);
+
         if ($esolverCodArt) {
-            $esolverData = $this->getEsolverArticleData($esolverCodArt);
             return [
                 'found'        => true,
                 'source'       => $accessResult['found'] ? 'sqlsrv+access' : 'sqlsrv',
@@ -71,8 +73,27 @@ class ArticleLookupService
         }
 
         if ($accessResult['found']) {
-            // Access trovato: usa il lotto pulito (senza prefisso QR)
-            return array_merge($accessResult, ['lot' => $esolverLot]);
+            // Lotto non in MagProgrLotto ma articolo presente in ArtAnagrafica:
+            // usa UM e descrizione di Esolver se disponibili
+            return array_merge($accessResult, [
+                'lot'         => $esolverLot,
+                'description' => $esolverData['description'] ?: $accessResult['description'],
+                'um'          => $esolverData['um'] ?: $accessResult['um'],
+                'source'      => $esolverData['um'] ? 'sqlsrv+access' : 'access',
+            ]);
+        }
+
+        // Articolo solo in ArtAnagrafica (nessun lotto in Esolver, non in Access)
+        if ($esolverData['description'] || $esolverData['um']) {
+            return [
+                'found'        => true,
+                'source'       => 'sqlsrv',
+                'article_code' => $codGestionale,
+                'description'  => $esolverData['description'],
+                'um'           => $esolverData['um'],
+                'lot'          => $esolverLot,
+                'lot_match'    => false,
+            ];
         }
 
         return $this->notFound($scanned);
