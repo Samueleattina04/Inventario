@@ -261,32 +261,32 @@ class ArticleLookupService
 
     private function lookupByArticleCode(string $code): array
     {
-        // 1. Esolver: verifica se il CodArt esiste in MagProgrLotto
-        $inEsolver = false;
+        // 1. Esolver: cerca in ArtAnagrafica (anagrafica completa, include articoli senza lotti)
         try {
-            $inEsolver = DB::connection('articles_sqlsrv')
-                ->table('MagProgrLotto')
+            $row = DB::connection('articles_sqlsrv')
+                ->table('ArtAnagrafica')
                 ->where('CodArt', $code)
-                ->exists();
+                ->select('CodArt', 'DesArt', 'DesEstesa', 'MagUm')
+                ->first();
+
+            if ($row) {
+                $description = trim($row->DesArt ?? '') ?: trim($row->DesEstesa ?? '');
+                return [
+                    'found'        => true,
+                    'source'       => 'sqlsrv',
+                    'article_code' => $row->CodArt,
+                    'description'  => $description,
+                    'um'           => trim($row->MagUm ?? ''),
+                    'lot'          => '',
+                    'lot_match'    => false,
+                ];
+            }
         } catch (Throwable $e) {
             Log::error('ArticleCodeLookup Esolver error', ['code' => $code, 'error' => $e->getMessage()]);
         }
 
-        // 2. Access: descrizione e UM per CodGestionale (= CodArt di Esolver)
+        // 2. Access: fallback se non presente in Esolver
         $accessResult = $this->lookupAccessByCodGestionale($code, '');
-
-        if ($inEsolver) {
-            return [
-                'found'        => true,
-                'source'       => $accessResult['found'] ? 'sqlsrv+access' : 'sqlsrv',
-                'article_code' => $code,
-                'description'  => $accessResult['description'] ?? '',
-                'um'           => $accessResult['um'] ?? '',
-                'lot'          => '',
-                'lot_match'    => false,
-            ];
-        }
-
         if ($accessResult['found']) {
             return array_merge($accessResult, ['lot' => '', 'lot_match' => false]);
         }
