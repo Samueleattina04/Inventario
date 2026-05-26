@@ -255,12 +255,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ── Palmare / barcode scanner auto-submit ──────────────────────────────
-    // Strategia multilivello per massima compatibilità Zebra:
-    //   1. CR/LF embedded nel valore (alcuni Zebra li iniettano nel testo)
-    //   2. Enter su keydown / keyup (suffisso CR standard Zebra)
-    //   3. Timing: tutti i char in < 150ms → sicuramente scanner
-    let scanStartTime = null;
-    let scanDebounceTimer = null;
+    // Zebra invia CR alla fine della scansione → basta intercettare Enter.
+    // Alcuni modelli iniettano CR/LF direttamente nel valore → gestito su input.
     let lookupPending = false;
 
     const lotInput = document.getElementById('lotInput');
@@ -271,36 +267,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!val) return;
         lookupPending = true;
         lotInput.value = val;
-        clearTimeout(scanDebounceTimer);
-        scanStartTime = null;
         manualLookup();
         setTimeout(() => { lookupPending = false; }, 1500);
     }
 
-    // 1. CR/LF iniettato direttamente nel valore (paste-like su alcuni Zebra)
+    // CR/LF iniettato nel valore (alcuni Zebra)
     lotInput.addEventListener('input', function() {
-        if (/[\r\n]/.test(this.value)) { fireLookup(); return; }
-
-        clearTimeout(scanDebounceTimer);
-        const val = this.value.trim();
-        if (!val) { scanStartTime = null; return; }
-
-        if (!scanStartTime) scanStartTime = Date.now();
-        const elapsed = Date.now() - scanStartTime;
-
-        // 3. Timing: tutti i char arrivati rapidamente → scanner
-        scanDebounceTimer = setTimeout(() => {
-            const currentVal = lotInput.value.trim();
-            if (currentVal.length >= 4 && elapsed < 150) fireLookup();
-            else scanStartTime = null;
-        }, 80);
+        if (/[\r\n]/.test(this.value)) fireLookup();
     });
 
-    // 2. Enter su keydown e keyup (doppio per sicurezza su browser mobile)
+    // Enter / CR dalla scansione (suffisso standard Zebra)
     lotInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); fireLookup(); }
-    });
-    lotInput.addEventListener('keyup', function(e) {
         if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); fireLookup(); }
     });
 
