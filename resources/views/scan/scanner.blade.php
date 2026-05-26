@@ -62,17 +62,17 @@
 
                 <hr class="my-2">
 
-                {{-- Lot input (also receives barcode scanner input) --}}
-                <label class="form-label fw-semibold">Lotto (scanner o inserimento manuale)</label>
+                {{-- Lot / article code input (also receives barcode scanner input) --}}
+                <label class="form-label fw-semibold">Lotto, QR o Codice Articolo</label>
                 <div class="input-group mb-2">
                     <input type="text" id="lotInput" class="form-control form-control-lg"
-                        placeholder="Es. 5108-14026280 oppure 5789.14026.734"
+                        placeholder="Scansiona o inserisci lotto / codice articolo"
                         autocomplete="off" autocorrect="off" spellcheck="false">
                     <button class="btn btn-primary px-3" onclick="manualLookup()">
                         <i class="bi bi-search"></i>
                     </button>
                 </div>
-                <small class="text-muted">Il formato lotto deve essere completo (con trattino o punto)</small>
+                <small class="text-muted">Con palmare: la ricerca parte in automatico dopo la scansione</small>
 
             </div>
         </div>
@@ -254,12 +254,43 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') { e.preventDefault(); searchArticles(); }
     });
 
-    // Auto-submit on Enter in lot input (barcode scanner sends Enter)
-    document.getElementById('lotInput').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') { e.preventDefault(); manualLookup(); }
+    // ── Palmare / barcode scanner auto-submit ──────────────────────────────
+    // Scanner Zebra spara tutti i char in < 100ms poi invia Enter (CR).
+    // Strategia doppia:
+    //   1. Enter key → submit immediato (copre 99% dei palmari con suffisso CR)
+    //   2. Timing detection → se tutti i char arrivano in < 100ms, submit automatico
+    //      (fallback per scanner senza suffisso CR configurato)
+    let scanStartTime = null;
+    let lastInputElapsed = 0;
+    let scanDebounceTimer = null;
+
+    const lotInput = document.getElementById('lotInput');
+
+    lotInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); manualLookup(); return; }
+        if (!scanStartTime && e.key.length === 1) scanStartTime = Date.now();
     });
 
-    document.getElementById('lotInput').focus();
+    lotInput.addEventListener('input', function() {
+        clearTimeout(scanDebounceTimer);
+        const val = this.value.trim();
+        if (!val) { scanStartTime = null; return; }
+
+        // Capture elapsed at last char arrival (not after the timeout delay)
+        lastInputElapsed = scanStartTime ? (Date.now() - scanStartTime) : 9999;
+
+        scanDebounceTimer = setTimeout(() => {
+            const currentVal = lotInput.value.trim();
+            // Se >= 5 char arrivati in < 100ms → sicuramente scanner, non digitazione umana
+            if (currentVal.length >= 5 && lastInputElapsed < 100) {
+                manualLookup();
+            }
+            scanStartTime = null;
+            lastInputElapsed = 0;
+        }, 80);
+    });
+
+    lotInput.focus();
 });
 
 async function searchArticles() {

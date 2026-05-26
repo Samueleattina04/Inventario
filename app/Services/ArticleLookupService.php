@@ -23,19 +23,17 @@ class ArticleLookupService
         // Barcode/manual format:  {id}.{rest}  or  {id}-{rest}
         [$id, $type] = $this->parseLot($scanned);
 
-        if ($type === 'invalid') {
-            return $this->notFound($scanned);
+        if ($type !== 'invalid') {
+            $result = $this->lookupEsolverByFullLot($scanned, $id);
+            if ($result['found']) return $result;
+
+            $result = $this->lookupAccessById($scanned, $id, $type);
+            if ($result['found']) return $result;
         }
 
-        $result = $this->lookupEsolverByFullLot($scanned, $id);
-        if ($result['found']) {
-            return $result;
-        }
-
-        $result = $this->lookupAccessById($scanned, $id, $type);
-        if ($result['found']) {
-            return $result;
-        }
+        // Fallback: treat input as a direct article code
+        $result = $this->lookupByArticleCode($scanned);
+        if ($result['found']) return $result;
 
         return $this->notFound($scanned);
     }
@@ -257,6 +255,55 @@ class ArticleLookupService
             Log::error('EsolverLotLookup error', ['lot' => $esolverLot, 'cod_gestionale' => $codGestionale, 'error' => $e->getMessage()]);
             return null;
         }
+    }
+
+    // ── Article code direct lookup ────────────────────────────────────────────
+
+    private function lookupByArticleCode(string $code): array
+    {
+        try {
+            $pdo = $this->accessPdo();
+
+            $stmt = $pdo->prepare(
+                'SELECT [CodGestionale],[Nome comerc Ingrediente],[UM]
+                 FROM [T_INGREDIENTI] WHERE [CodGestionale] = ?'
+            );
+            $stmt->execute([$code]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                return [
+                    'found'        => true,
+                    'source'       => 'access',
+                    'article_code' => $row['CodGestionale'],
+                    'description'  => $row['Nome comerc Ingrediente'] ?? '',
+                    'um'           => $this->resolveUm($row['UM']),
+                    'lot'          => '',
+                    'lot_match'    => false,
+                ];
+            }
+
+            $stmt = $pdo->prepare(
+                'SELECT [CodGestionale],[CodiceAziendale],[Nome commerciale PA],[unimis]
+                 FROM [T_PRODOTTI] WHERE [CodGestionale] = ? OR [CodiceAziendale] = ?'
+            );
+            $stmt->execute([$code, $code]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                return [
+                    'found'        => true,
+                    'source'       => 'access',
+                    'article_code' => $row['CodGestionale'] ?: ($row['CodiceAziendale'] ?? $code),
+                    'description'  => $row['Nome commerciale PA'] ?? '',
+                    'um'           => $this->resolveUm($row['unimis']),
+                    'lot'          => '',
+                    'lot_match'    => false,
+                ];
+            }
+        } catch (Throwable $e) {
+            Log::error('ArticleCodeLookup error', ['code' => $code, 'error' => $e->getMessage()]);
+        }
+
+        return ['found' => false];
     }
 
     // ── Article search (not-found panel) ─────────────────────────────────────
