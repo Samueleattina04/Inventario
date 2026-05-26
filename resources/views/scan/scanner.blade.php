@@ -254,12 +254,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') { e.preventDefault(); searchArticles(); }
     });
 
-    // ── Palmare / barcode scanner auto-submit ──────────────────────────────
-    // Lo scanner Zebra completa la scansione intera in ~20-30ms.
-    // Un umano non può fisicamente digitare 6+ caratteri in meno di 60ms.
-    // Soglie: >= 6 chars E elapsed < 60ms → scanner sicuro.
+    // ── Palmare / barcode scanner + digitazione manuale auto-submit ───────────
+    // Timer veloce (60ms):  scanner Zebra → tutti i char in ~20-30ms → scatta
+    // Timer lento  (2s):    digitazione manuale → pausa di 2s → scatta
     let scanStartTime = null;
-    let scanDebounceTimer = null;
+    let scanTimer = null;
+    let manualTimer = null;
     let lookupPending = false;
 
     const lotInput = document.getElementById('lotInput');
@@ -270,13 +270,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!val) return;
         lookupPending = true;
         lotInput.value = val;
-        clearTimeout(scanDebounceTimer);
+        clearTimeout(scanTimer);
+        clearTimeout(manualTimer);
         scanStartTime = null;
         manualLookup();
         setTimeout(() => { lookupPending = false; }, 1500);
     }
 
-    // Enter/CR (se il Zebra è configurato con suffisso CR)
+    // Enter/CR (se Zebra configurato con suffisso CR)
     lotInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); fireLookup(); }
     });
@@ -285,23 +286,30 @@ document.addEventListener('DOMContentLoaded', () => {
         // CR/LF iniettato nel valore (alcuni Zebra)
         if (/[\r\n]/.test(this.value)) { fireLookup(); return; }
 
-        clearTimeout(scanDebounceTimer);
+        clearTimeout(scanTimer);
+        clearTimeout(manualTimer);
+
         const val = this.value.trim();
         if (!val) { scanStartTime = null; return; }
 
         if (!scanStartTime) scanStartTime = Date.now();
         const elapsed = Date.now() - scanStartTime;
 
-        scanDebounceTimer = setTimeout(() => {
+        // Timer veloce: scanner (>= 6 chars in < 60ms)
+        scanTimer = setTimeout(() => {
             const currentVal = lotInput.value.trim();
-            // Scanner: >= 6 chars arrivati in meno di 60ms
-            // Umano più veloce al mondo: ~80ms/char → 6 chars = ~480ms → mai sotto 60ms
             if (currentVal.length >= 6 && elapsed < 60) {
                 fireLookup();
             } else {
                 scanStartTime = null;
             }
         }, 60);
+
+        // Timer lento: digitazione manuale (2s di inattività, minimo 2 chars)
+        manualTimer = setTimeout(() => {
+            const currentVal = lotInput.value.trim();
+            if (currentVal.length >= 2) fireLookup();
+        }, 2000);
     });
 
     lotInput.focus();
