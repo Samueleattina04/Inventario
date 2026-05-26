@@ -261,46 +261,34 @@ class ArticleLookupService
 
     private function lookupByArticleCode(string $code): array
     {
+        // 1. Esolver: verifica se il CodArt esiste in MagProgrLotto
+        $inEsolver = false;
         try {
-            $pdo = $this->accessPdo();
-
-            $stmt = $pdo->prepare(
-                'SELECT [CodGestionale],[Nome comerc Ingrediente],[UM]
-                 FROM [T_INGREDIENTI] WHERE [CodGestionale] = ?'
-            );
-            $stmt->execute([$code]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($row) {
-                return [
-                    'found'        => true,
-                    'source'       => 'access',
-                    'article_code' => $row['CodGestionale'],
-                    'description'  => $row['Nome comerc Ingrediente'] ?? '',
-                    'um'           => $this->resolveUm($row['UM']),
-                    'lot'          => '',
-                    'lot_match'    => false,
-                ];
-            }
-
-            $stmt = $pdo->prepare(
-                'SELECT [CodGestionale],[CodiceAziendale],[Nome commerciale PA],[unimis]
-                 FROM [T_PRODOTTI] WHERE [CodGestionale] = ? OR [CodiceAziendale] = ?'
-            );
-            $stmt->execute([$code, $code]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($row) {
-                return [
-                    'found'        => true,
-                    'source'       => 'access',
-                    'article_code' => $row['CodGestionale'] ?: ($row['CodiceAziendale'] ?? $code),
-                    'description'  => $row['Nome commerciale PA'] ?? '',
-                    'um'           => $this->resolveUm($row['unimis']),
-                    'lot'          => '',
-                    'lot_match'    => false,
-                ];
-            }
+            $inEsolver = DB::connection('articles_sqlsrv')
+                ->table('MagProgrLotto')
+                ->where('CodArt', $code)
+                ->exists();
         } catch (Throwable $e) {
-            Log::error('ArticleCodeLookup error', ['code' => $code, 'error' => $e->getMessage()]);
+            Log::error('ArticleCodeLookup Esolver error', ['code' => $code, 'error' => $e->getMessage()]);
+        }
+
+        // 2. Access: descrizione e UM per CodGestionale (= CodArt di Esolver)
+        $accessResult = $this->lookupAccessByCodGestionale($code, '');
+
+        if ($inEsolver) {
+            return [
+                'found'        => true,
+                'source'       => $accessResult['found'] ? 'sqlsrv+access' : 'sqlsrv',
+                'article_code' => $code,
+                'description'  => $accessResult['description'] ?? '',
+                'um'           => $accessResult['um'] ?? '',
+                'lot'          => '',
+                'lot_match'    => false,
+            ];
+        }
+
+        if ($accessResult['found']) {
+            return array_merge($accessResult, ['lot' => '', 'lot_match' => false]);
         }
 
         return ['found' => false];
