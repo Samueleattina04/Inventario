@@ -60,6 +60,19 @@
                         </td>
                     </tr>
                     <tr>
+                        <th class="text-muted">Scadenza</th>
+                        <td>
+                            @if($expiry_date)
+                                @php $exp = \Carbon\Carbon::parse($expiry_date); @endphp
+                                <span class="fw-semibold {{ $exp->isPast() ? 'text-danger' : ($exp->diffInDays() < 30 ? 'text-warning' : 'text-success') }}">
+                                    {{ $exp->format('d/m/Y') }}
+                                </span>
+                            @else
+                                <span class="text-muted small">Non presente su Esolver</span>
+                            @endif
+                        </td>
+                    </tr>
+                    <tr>
                         <th class="text-muted">Magazzino</th>
                         <td>{{ session('warehouse_name') }} / {{ session('area_name') }}</td>
                     </tr>
@@ -83,6 +96,7 @@
             <input type="hidden" name="um" value="{{ $um }}">
             <input type="hidden" name="lot" value="{{ $lot }}">
             <input type="hidden" name="db_source" value="{{ $db_source }}">
+            <input type="hidden" name="expiry_date" value="{{ $expiry_date }}">
 
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body p-3">

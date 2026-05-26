@@ -92,6 +92,7 @@
                     <th>Descrizione</th>
                     <th>UM</th>
                     <th>Lotto</th>
+                    <th>Scadenza</th>
                     <th class="text-end">Quantità</th>
                     <th>DB</th>
                 </tr>
@@ -109,6 +110,16 @@
                     <td class="small">{{ Str::limit($record->description, 40) }}</td>
                     <td><span class="badge bg-light text-dark">{{ $record->um }}</span></td>
                     <td class="small text-muted">{{ $record->lot }}</td>
+                    <td class="small text-nowrap">
+                        @if($record->expiry_date)
+                            @php $exp = $record->expiry_date; @endphp
+                            <span class="{{ $exp->isPast() ? 'text-danger fw-bold' : ($exp->diffInDays() < 30 ? 'text-warning fw-semibold' : 'text-success') }}">
+                                {{ $exp->format('d/m/Y') }}
+                            </span>
+                        @else
+                            <span class="text-muted">—</span>
+                        @endif
+                    </td>
                     <td class="text-end fw-bold">{{ number_format($record->quantity, 2, ',', '.') }}</td>
                     <td>
                         @if(str_starts_with($record->db_source ?? '', 'sqlsrv'))
@@ -123,7 +134,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="9" class="text-center text-muted py-4">Nessun record trovato.</td></tr>
+                <tr><td colspan="10" class="text-center text-muted py-4">Nessun record trovato.</td></tr>
                 @endforelse
             </tbody>
         </table>

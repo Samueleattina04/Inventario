@@ -214,6 +214,7 @@ async function doLookup(lotValue) {
                 description:  data.description,
                 um:           data.um,
                 lot:          data.lot,
+                expiry_date:  data.expiry_date ?? '',
                 db_source:    data.source,
                 lot_match:    data.lot_match ? '1' : '0',
             });

@@ -55,6 +55,7 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
             'Descrizione',
             'UM',
             'Lotto',
+            'Scadenza',
             'Quantità',
             'DB Provenienza',
         ];
@@ -71,6 +72,7 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
             $record->description,
             $record->um ?? '',
             $record->lot ?? '',
+            $record->expiry_date?->format('d/m/Y') ?? '',
             $record->quantity,
             $record->db_source_label,
         ];

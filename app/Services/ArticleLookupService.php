@@ -69,21 +69,20 @@ class ArticleLookupService
                 'um'           => $esolverData['um'] ?: ($accessResult['um'] ?? ''),
                 'lot'          => $esolverLot,
                 'lot_match'    => true,
+                'expiry_date'  => $this->getEsolverLotExpiry($esolverCodArt, $esolverLot),
             ];
         }
 
         if ($accessResult['found']) {
-            // Lotto non in MagProgrLotto ma articolo presente in ArtAnagrafica:
-            // usa UM e descrizione di Esolver se disponibili
             return array_merge($accessResult, [
-                'lot'         => $esolverLot,
-                'description' => $esolverData['description'] ?: $accessResult['description'],
-                'um'          => $esolverData['um'] ?: $accessResult['um'],
-                'source'      => $esolverData['um'] ? 'sqlsrv+access' : 'access',
+                'lot'          => $esolverLot,
+                'description'  => $esolverData['description'] ?: $accessResult['description'],
+                'um'           => $esolverData['um'] ?: $accessResult['um'],
+                'source'       => $esolverData['um'] ? 'sqlsrv+access' : 'access',
+                'expiry_date'  => $esolverData['um'] ? $this->getEsolverLotExpiry($codGestionale, $esolverLot) : null,
             ]);
         }
 
-        // Articolo solo in ArtAnagrafica (nessun lotto in Esolver, non in Access)
         if ($esolverData['description'] || $esolverData['um']) {
             return [
                 'found'        => true,
@@ -93,6 +92,7 @@ class ArticleLookupService
                 'um'           => $esolverData['um'],
                 'lot'          => $esolverLot,
                 'lot_match'    => false,
+                'expiry_date'  => $this->getEsolverLotExpiry($codGestionale, $esolverLot),
             ];
         }
 
@@ -120,6 +120,7 @@ class ArticleLookupService
                     'um'           => $esolverData['um'],
                     'lot'          => $fullLot,
                     'lot_match'    => true,
+                    'expiry_date'  => $this->getEsolverLotExpiry($codArt, $fullLot),
                 ];
             }
         } catch (Throwable $e) {
@@ -278,6 +279,32 @@ class ArticleLookupService
             Log::error('EsolverLotLookup error', ['lot' => $esolverLot, 'cod_gestionale' => $codGestionale, 'error' => $e->getMessage()]);
             return null;
         }
+    }
+
+    // ── Esolver lot expiry ────────────────────────────────────────────────────
+
+    private function getEsolverLotExpiry(string $codArt, string $rifLottoAlfa): ?string
+    {
+        if ($codArt === '' || $rifLottoAlfa === '') return null;
+        try {
+            $row = DB::connection('articles_sqlsrv')
+                ->table('MagAnagrLotti')
+                ->where('CodArt', $codArt)
+                ->where('RifLottoAlfa', $rifLottoAlfa)
+                ->select('DataScadenzaLotto')
+                ->first();
+
+            if ($row && $row->DataScadenzaLotto) {
+                $date = \Carbon\Carbon::parse($row->DataScadenzaLotto);
+                // 1800-01-01 = nessuna scadenza impostata in Esolver
+                if ($date->year > 1800) {
+                    return $date->format('Y-m-d');
+                }
+            }
+        } catch (Throwable $e) {
+            Log::error('EsolverLotExpiry error', ['cod' => $codArt, 'lot' => $rifLottoAlfa, 'error' => $e->getMessage()]);
+        }
+        return null;
     }
 
     // ── Esolver article master data ───────────────────────────────────────────
