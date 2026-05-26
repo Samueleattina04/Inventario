@@ -15,9 +15,19 @@ class ArticleLookupService
     {
         $scanned = trim($scanned);
 
+        // Access lots may embed expiry date: "{lot};dd/mm/yyyy"
+        $accessExpiry = null;
+        if (str_contains($scanned, ';')) {
+            [$scanned, $rawDate] = explode(';', $scanned, 2);
+            try {
+                $accessExpiry = \Carbon\Carbon::createFromFormat('d/m/Y', trim($rawDate))->format('Y-m-d');
+            } catch (Throwable) {}
+        }
+
         // QR format:  {digits}{CodGestionale}#{lotId}  e.g. 241PISTACCSGUSCINTEROESTE-SL#102712
         if (str_contains($scanned, '#')) {
-            return $this->lookupQr($scanned);
+            $result = $this->lookupQr($scanned);
+            return $this->mergeAccessExpiry($result, $accessExpiry);
         }
 
         // Barcode/manual format:  {id}.{rest}  or  {id}-{rest}
@@ -25,17 +35,25 @@ class ArticleLookupService
 
         if ($type !== 'invalid') {
             $result = $this->lookupEsolverByFullLot($scanned, $id);
-            if ($result['found']) return $result;
+            if ($result['found']) return $this->mergeAccessExpiry($result, $accessExpiry);
 
             $result = $this->lookupAccessById($scanned, $id, $type);
-            if ($result['found']) return $result;
+            if ($result['found']) return $this->mergeAccessExpiry($result, $accessExpiry);
         }
 
         // Fallback: treat input as a direct article code
         $result = $this->lookupByArticleCode($scanned);
-        if ($result['found']) return $result;
+        if ($result['found']) return $this->mergeAccessExpiry($result, $accessExpiry);
 
         return $this->notFound($scanned);
+    }
+
+    private function mergeAccessExpiry(array $result, ?string $accessExpiry): array
+    {
+        if ($accessExpiry !== null && empty($result['expiry_date'])) {
+            $result['expiry_date'] = $accessExpiry;
+        }
+        return $result;
     }
 
     // ── QR lookup ─────────────────────────────────────────────────────────────
