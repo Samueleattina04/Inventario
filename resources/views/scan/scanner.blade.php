@@ -255,8 +255,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ── Palmare / barcode scanner auto-submit ──────────────────────────────
-    // Zebra invia CR alla fine della scansione → basta intercettare Enter.
-    // Alcuni modelli iniettano CR/LF direttamente nel valore → gestito su input.
+    // Lo scanner Zebra completa la scansione intera in ~20-30ms.
+    // Un umano non può fisicamente digitare 6+ caratteri in meno di 60ms.
+    // Soglie: >= 6 chars E elapsed < 60ms → scanner sicuro.
+    let scanStartTime = null;
+    let scanDebounceTimer = null;
     let lookupPending = false;
 
     const lotInput = document.getElementById('lotInput');
@@ -267,18 +270,38 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!val) return;
         lookupPending = true;
         lotInput.value = val;
+        clearTimeout(scanDebounceTimer);
+        scanStartTime = null;
         manualLookup();
         setTimeout(() => { lookupPending = false; }, 1500);
     }
 
-    // CR/LF iniettato nel valore (alcuni Zebra)
-    lotInput.addEventListener('input', function() {
-        if (/[\r\n]/.test(this.value)) fireLookup();
-    });
-
-    // Enter / CR dalla scansione (suffisso standard Zebra)
+    // Enter/CR (se il Zebra è configurato con suffisso CR)
     lotInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); fireLookup(); }
+    });
+
+    lotInput.addEventListener('input', function() {
+        // CR/LF iniettato nel valore (alcuni Zebra)
+        if (/[\r\n]/.test(this.value)) { fireLookup(); return; }
+
+        clearTimeout(scanDebounceTimer);
+        const val = this.value.trim();
+        if (!val) { scanStartTime = null; return; }
+
+        if (!scanStartTime) scanStartTime = Date.now();
+        const elapsed = Date.now() - scanStartTime;
+
+        scanDebounceTimer = setTimeout(() => {
+            const currentVal = lotInput.value.trim();
+            // Scanner: >= 6 chars arrivati in meno di 60ms
+            // Umano più veloce al mondo: ~80ms/char → 6 chars = ~480ms → mai sotto 60ms
+            if (currentVal.length >= 6 && elapsed < 60) {
+                fireLookup();
+            } else {
+                scanStartTime = null;
+            }
+        }, 60);
     });
 
     lotInput.focus();
