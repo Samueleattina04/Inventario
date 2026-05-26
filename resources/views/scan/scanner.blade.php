@@ -72,7 +72,12 @@
                         <i class="bi bi-search"></i>
                     </button>
                 </div>
-                <small class="text-muted">Con palmare: la ricerca parte in automatico dopo la scansione</small>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="manualModeToggle">
+                    <label class="form-check-label text-muted small" for="manualModeToggle">
+                        Inserimento manuale <span class="text-muted">(disabilita auto-invio scanner)</span>
+                    </label>
+                </div>
 
             </div>
         </div>
@@ -254,17 +259,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') { e.preventDefault(); searchArticles(); }
     });
 
-    // ── Palmare / barcode scanner auto-submit ──────────────────────────────
-    // Rilevamento basato sul FORMATO, non sulla velocità:
-    //   • QR code:   contiene sempre '#'  → auto-submit affidabile
-    //   • Barcode:   prefisso numerico + '.' o '-' → auto-submit
-    //   • Codice articolo / testo libero → nessun auto-submit, solo bottone
-    // Questo approccio è immune dall'autocomplete Android che inietta
-    // caratteri rapidamente e farebbe scattare rilevamenti basati sul timing.
+    // ── Modalità manuale / scanner ─────────────────────────────────────────
+    // Toggle "Inserimento manuale": se attivo, nessun auto-submit.
+    // Se disattivo (default), lo scanner Zebra invia automaticamente.
+    // La preferenza viene salvata in localStorage.
     let submitTimer = null;
     let lookupPending = false;
 
-    const lotInput = document.getElementById('lotInput');
+    const lotInput        = document.getElementById('lotInput');
+    const manualToggle    = document.getElementById('manualModeToggle');
+
+    // Ripristina preferenza salvata
+    manualToggle.checked = localStorage.getItem('manualMode') === '1';
+    manualToggle.addEventListener('change', function() {
+        localStorage.setItem('manualMode', this.checked ? '1' : '0');
+    });
+
+    function isManualMode() { return manualToggle.checked; }
 
     function fireLookup() {
         if (lookupPending) return;
@@ -277,39 +288,31 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { lookupPending = false; }, 1500);
     }
 
-    function looksLikeScan(val) {
-        if (val.includes('#')) return true;              // QR code
-        if (/^\d+\.\S/.test(val)) return true;          // barcode ingrediente (123.xxx)
-        if (/^\d+\-\S/.test(val)) return true;          // barcode prodotto    (123-xxx)
-        return false;
-    }
-
-    // Enter/CR da keydown e keypress (compatibilità Android IME)
+    // Enter/CR — funziona sia in modalità scanner che manuale
     ['keydown', 'keypress'].forEach(evt => {
         lotInput.addEventListener(evt, function(e) {
             if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); fireLookup(); }
         });
     });
-
-    // beforeinput: Enter su Android con IME attivo
     lotInput.addEventListener('beforeinput', function(e) {
         if (e.inputType === 'insertLineBreak') { e.preventDefault(); fireLookup(); }
     });
 
     lotInput.addEventListener('input', function() {
-        // CR/LF iniettato nel valore
+        // CR/LF nel valore (alcuni Zebra)
         if (/[\r\n]/.test(this.value)) { fireLookup(); return; }
+
+        // In modalità manuale nessun auto-submit
+        if (isManualMode()) return;
 
         clearTimeout(submitTimer);
         const val = this.value.trim();
         if (!val) return;
 
-        // Auto-submit solo se il valore ha il formato di una scansione
-        if (looksLikeScan(val)) {
-            submitTimer = setTimeout(() => {
-                if (looksLikeScan(lotInput.value.trim())) fireLookup();
-            }, 80);
-        }
+        // Auto-submit dopo 80ms se c'è contenuto (scanner ha già finito di iniettare)
+        submitTimer = setTimeout(() => {
+            if (lotInput.value.trim()) fireLookup();
+        }, 80);
     });
 
     lotInput.focus();
