@@ -254,12 +254,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') { e.preventDefault(); searchArticles(); }
     });
 
-    // ── Palmare / barcode scanner + digitazione manuale auto-submit ───────────
-    // Timer veloce (60ms):  scanner Zebra → tutti i char in ~20-30ms → scatta
-    // Timer lento  (2s):    digitazione manuale → pausa di 2s → scatta
+    // ── Palmare / barcode scanner auto-submit ──────────────────────────────
+    // Solo scanner Zebra: tutti i char in ~20-30ms → scatta automaticamente.
+    // Digitazione manuale: nessun auto-submit, si usa il bottone di ricerca.
     let scanStartTime = null;
     let scanTimer = null;
-    let manualTimer = null;
     let lookupPending = false;
 
     const lotInput = document.getElementById('lotInput');
@@ -271,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
         lookupPending = true;
         lotInput.value = val;
         clearTimeout(scanTimer);
-        clearTimeout(manualTimer);
         scanStartTime = null;
         manualLookup();
         setTimeout(() => { lookupPending = false; }, 1500);
@@ -287,29 +285,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (/[\r\n]/.test(this.value)) { fireLookup(); return; }
 
         clearTimeout(scanTimer);
-        clearTimeout(manualTimer);
-
         const val = this.value.trim();
         if (!val) { scanStartTime = null; return; }
 
         if (!scanStartTime) scanStartTime = Date.now();
         const elapsed = Date.now() - scanStartTime;
 
-        // Timer veloce: scanner (>= 6 chars in < 60ms)
+        // Scanner: >= 6 chars arrivati in < 60ms → impossibile per digitazione umana
         scanTimer = setTimeout(() => {
-            const currentVal = lotInput.value.trim();
-            if (currentVal.length >= 6 && elapsed < 60) {
-                fireLookup();
-            } else {
-                scanStartTime = null;
-            }
+            if (lotInput.value.trim().length >= 6 && elapsed < 60) fireLookup();
+            else scanStartTime = null;
         }, 60);
-
-        // Timer lento: digitazione manuale (2s di inattività, minimo 2 chars)
-        manualTimer = setTimeout(() => {
-            const currentVal = lotInput.value.trim();
-            if (currentVal.length >= 2) fireLookup();
-        }, 2000);
     });
 
     lotInput.focus();
