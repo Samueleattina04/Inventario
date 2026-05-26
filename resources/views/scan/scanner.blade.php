@@ -255,39 +255,53 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ── Palmare / barcode scanner auto-submit ──────────────────────────────
-    // Scanner Zebra spara tutti i char in < 100ms poi invia Enter (CR).
-    // Strategia doppia:
-    //   1. Enter key → submit immediato (copre 99% dei palmari con suffisso CR)
-    //   2. Timing detection → se tutti i char arrivano in < 100ms, submit automatico
-    //      (fallback per scanner senza suffisso CR configurato)
+    // Strategia multilivello per massima compatibilità Zebra:
+    //   1. CR/LF embedded nel valore (alcuni Zebra li iniettano nel testo)
+    //   2. Enter su keydown / keyup (suffisso CR standard Zebra)
+    //   3. Timing: tutti i char in < 150ms → sicuramente scanner
     let scanStartTime = null;
-    let lastInputElapsed = 0;
     let scanDebounceTimer = null;
+    let lookupPending = false;
 
     const lotInput = document.getElementById('lotInput');
 
-    lotInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') { e.preventDefault(); manualLookup(); return; }
-        if (!scanStartTime && e.key.length === 1) scanStartTime = Date.now();
-    });
+    function fireLookup() {
+        if (lookupPending) return;
+        const val = lotInput.value.replace(/[\r\n]/g, '').trim();
+        if (!val) return;
+        lookupPending = true;
+        lotInput.value = val;
+        clearTimeout(scanDebounceTimer);
+        scanStartTime = null;
+        manualLookup();
+        setTimeout(() => { lookupPending = false; }, 1500);
+    }
 
+    // 1. CR/LF iniettato direttamente nel valore (paste-like su alcuni Zebra)
     lotInput.addEventListener('input', function() {
+        if (/[\r\n]/.test(this.value)) { fireLookup(); return; }
+
         clearTimeout(scanDebounceTimer);
         const val = this.value.trim();
         if (!val) { scanStartTime = null; return; }
 
-        // Capture elapsed at last char arrival (not after the timeout delay)
-        lastInputElapsed = scanStartTime ? (Date.now() - scanStartTime) : 9999;
+        if (!scanStartTime) scanStartTime = Date.now();
+        const elapsed = Date.now() - scanStartTime;
 
+        // 3. Timing: tutti i char arrivati rapidamente → scanner
         scanDebounceTimer = setTimeout(() => {
             const currentVal = lotInput.value.trim();
-            // Se >= 5 char arrivati in < 100ms → sicuramente scanner, non digitazione umana
-            if (currentVal.length >= 5 && lastInputElapsed < 100) {
-                manualLookup();
-            }
-            scanStartTime = null;
-            lastInputElapsed = 0;
+            if (currentVal.length >= 4 && elapsed < 150) fireLookup();
+            else scanStartTime = null;
         }, 80);
+    });
+
+    // 2. Enter su keydown e keyup (doppio per sicurezza su browser mobile)
+    lotInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); fireLookup(); }
+    });
+    lotInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); fireLookup(); }
     });
 
     lotInput.focus();
