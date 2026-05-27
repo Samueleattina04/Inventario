@@ -30,13 +30,18 @@ class ArticleLookupService
             return $this->mergeAccessExpiry($result, $accessExpiry);
         }
 
-        // Barcode/manual format: validate lot against Esolver MagProgrLotto only.
-        // Access has no lot-level records — it's a product catalog, not a lot tracker.
-        // Access is only used in the QR path where the article code is already known.
+        // Barcode/manual format: Esolver first, then Access.
+        // Access can only confirm the PRODUCT exists (by ID prefix), not the specific lot —
+        // so lot_match is always false for Access barcode results; the operator sees a warning.
         [$id, $type] = $this->parseLot($scanned);
 
         $result = $this->lookupEsolverByFullLot($scanned, $id);
         if ($result['found']) return $this->mergeAccessExpiry($result, $accessExpiry);
+
+        if ($type !== 'invalid') {
+            $result = $this->lookupAccessById($scanned, $id, $type);
+            if ($result['found']) return $this->mergeAccessExpiry($result, $accessExpiry);
+        }
 
         // Fallback: treat input as a direct article code
         $result = $this->lookupByArticleCode($scanned);
@@ -166,7 +171,7 @@ class ArticleLookupService
                         'description'  => $row['Nome comerc Ingrediente'] ?? '',
                         'um'           => $this->resolveUm($row['UM']),
                         'lot'          => $fullLot,
-                        'lot_match'    => true,
+                        'lot_match'    => false,
                     ];
                 }
             } elseif ($type === 'prodotto') {
@@ -185,7 +190,7 @@ class ArticleLookupService
                         'description'  => $row['Nome commerciale PA'] ?? '',
                         'um'           => $this->resolveUm($row['unimis']),
                         'lot'          => $fullLot,
-                        'lot_match'    => true,
+                        'lot_match'    => false,
                     ];
                 }
             }
