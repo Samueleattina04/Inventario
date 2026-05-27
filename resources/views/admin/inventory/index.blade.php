@@ -75,6 +75,13 @@
     </div>
 </div>
 
+@if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>{{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+
 {{-- Results count --}}
 <div class="text-muted small mb-2">
     {{ $records->total() }} record trovati
@@ -95,6 +102,7 @@
                     <th>Scadenza</th>
                     <th class="text-end">Quantità</th>
                     <th>DB</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -132,9 +140,24 @@
                             <span class="badge bg-secondary">{{ $record->db_source }}</span>
                         @endif
                     </td>
+                    <td class="text-nowrap">
+                        <a href="{{ route('admin.inventory.show', $record) }}" class="btn btn-sm btn-outline-primary" title="Dettaglio">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{{ route('admin.inventory.edit', $record) }}" class="btn btn-sm btn-outline-warning" title="Modifica">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <form method="POST" action="{{ route('admin.inventory.destroy', $record) }}" class="d-inline"
+                              onsubmit="return confirm('Eliminare la registrazione #{{ $record->id }}?')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Elimina">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
                 </tr>
                 @empty
-                <tr><td colspan="10" class="text-center text-muted py-4">Nessun record trovato.</td></tr>
+                <tr><td colspan="11" class="text-center text-muted py-4">Nessun record trovato.</td></tr>
                 @endforelse
             </tbody>
         </table>

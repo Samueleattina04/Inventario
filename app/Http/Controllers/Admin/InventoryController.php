@@ -55,6 +55,51 @@ class InventoryController extends Controller
         return view('admin.inventory.grouped', compact('articles', 'lotDetails', 'warehouses', 'operators'));
     }
 
+    public function show(InventoryRecord $record)
+    {
+        $record->load(['user', 'warehouse', 'area']);
+        return view('admin.inventory.show', compact('record'));
+    }
+
+    public function edit(InventoryRecord $record)
+    {
+        $record->load(['user', 'warehouse', 'area']);
+        $warehouses = Warehouse::orderBy('name')->get()->load('activeAreas');
+        return view('admin.inventory.edit', compact('record', 'warehouses'));
+    }
+
+    public function update(Request $request, InventoryRecord $record)
+    {
+        $request->validate([
+            'article_code' => 'required|string|max:255',
+            'description'  => 'nullable|string|max:500',
+            'um'           => 'nullable|string|max:50',
+            'lot'          => 'nullable|string|max:255',
+            'expiry_date'  => 'nullable|date',
+            'quantity'     => 'required|numeric|min:0',
+            'notes'        => 'nullable|string|max:1000',
+        ], [
+            'article_code.required' => 'Il codice articolo è obbligatorio.',
+            'quantity.required'     => 'La quantità è obbligatoria.',
+            'quantity.numeric'      => 'La quantità deve essere un numero.',
+            'quantity.min'          => 'La quantità non può essere negativa.',
+        ]);
+
+        $record->update($request->only([
+            'article_code', 'description', 'um', 'lot', 'expiry_date', 'quantity', 'notes',
+        ]));
+
+        return redirect()->route('admin.inventory.index')
+            ->with('success', 'Registrazione aggiornata.');
+    }
+
+    public function destroy(InventoryRecord $record)
+    {
+        $record->delete();
+        return redirect()->route('admin.inventory.index')
+            ->with('success', 'Registrazione eliminata.');
+    }
+
     public function export(Request $request)
     {
         $filters  = $request->only(['date_from', 'date_to', 'warehouse_id', 'user_id', 'source']);
