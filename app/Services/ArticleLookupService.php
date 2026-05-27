@@ -31,12 +31,13 @@ class ArticleLookupService
         }
 
         // Barcode/manual format:  {id}.{rest}  or  {id}-{rest}
+        // Always try Esolver full-lot lookup first (works for any format, including plain numeric lots like "2712")
         [$id, $type] = $this->parseLot($scanned);
 
-        if ($type !== 'invalid') {
-            $result = $this->lookupEsolverByFullLot($scanned, $id);
-            if ($result['found']) return $this->mergeAccessExpiry($result, $accessExpiry);
+        $result = $this->lookupEsolverByFullLot($scanned, $id);
+        if ($result['found']) return $this->mergeAccessExpiry($result, $accessExpiry);
 
+        if ($type !== 'invalid') {
             $result = $this->lookupAccessById($scanned, $id, $type);
             if ($result['found']) return $this->mergeAccessExpiry($result, $accessExpiry);
         }
