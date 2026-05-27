@@ -30,17 +30,13 @@ class ArticleLookupService
             return $this->mergeAccessExpiry($result, $accessExpiry);
         }
 
-        // Barcode/manual format:  {id}.{rest}  or  {id}-{rest}
-        // Always try Esolver full-lot lookup first (works for any format, including plain numeric lots like "2712")
+        // Barcode/manual format: validate lot against Esolver MagProgrLotto only.
+        // Access has no lot-level records — it's a product catalog, not a lot tracker.
+        // Access is only used in the QR path where the article code is already known.
         [$id, $type] = $this->parseLot($scanned);
 
         $result = $this->lookupEsolverByFullLot($scanned, $id);
         if ($result['found']) return $this->mergeAccessExpiry($result, $accessExpiry);
-
-        if ($type !== 'invalid') {
-            $result = $this->lookupAccessById($scanned, $id, $type);
-            if ($result['found']) return $this->mergeAccessExpiry($result, $accessExpiry);
-        }
 
         // Fallback: treat input as a direct article code
         $result = $this->lookupByArticleCode($scanned);
