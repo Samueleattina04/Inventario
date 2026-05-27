@@ -105,7 +105,7 @@ class ScanController extends Controller
     {
         $request->validate([
             'article_code' => 'required|string|max:255',
-            'description'  => 'required|string|max:500',
+            'description'  => 'nullable|string|max:500',
             'um'           => 'nullable|string|max:50',
             'lot'          => 'nullable|string|max:255',
             'expiry_date'  => 'nullable|date',
@@ -115,6 +115,11 @@ class ScanController extends Controller
             'sample_weight'=> 'nullable|numeric|min:0',
             'total_weight' => 'nullable|numeric|min:0',
             'notes'        => 'nullable|string|max:1000',
+        ], [
+            'article_code.required' => 'Il codice articolo è obbligatorio.',
+            'quantity.required'     => 'La quantità è obbligatoria.',
+            'quantity.numeric'      => 'La quantità deve essere un numero.',
+            'quantity.min'          => 'La quantità non può essere negativa.',
         ]);
 
         if (! session('warehouse_id') || ! session('area_id')) {

@@ -169,7 +169,7 @@
                             id="quantity"
                             name="quantity"
                             class="form-control qty-input @error('quantity') is-invalid @enderror"
-                            step="0.0001"
+                            step="any"
                             min="0"
                             value="{{ old('quantity') }}"
                             placeholder="0"
