@@ -76,6 +76,21 @@ class ArticleLookupService
         $codGestionale = ltrim($articlePart, '0123456789');
         $esolverLot    = strlen($lotPart) > 2 ? substr($lotPart, 2) : $lotPart;
 
+        // The lot part may itself contain OmniTrack embedded fields: {lot}#37{qty}#15{YYMMDD}
+        // Strip them so only the clean lot is stored and searched in Esolver.
+        $qrEmbeddedExpiry = null;
+        if (str_contains($esolverLot, '#')) {
+            $cleanLot = explode('#', $esolverLot, 2)[0];
+            if (preg_match('/#15(\d{6})/', $esolverLot, $m)) {
+                try {
+                    $qrEmbeddedExpiry = \Carbon\Carbon::createFromFormat('Y-m-d',
+                        '20'.substr($m[1],0,2).'-'.substr($m[1],2,2).'-'.substr($m[1],4,2)
+                    )->format('Y-m-d');
+                } catch (Throwable) {}
+            }
+            $esolverLot = $cleanLot;
+        }
+
         Log::info('QR lookup', ['raw' => $scanned, 'cod_gestionale' => $codGestionale, 'esolver_lot' => $esolverLot]);
 
         // 1. Esolver: cerca lotto + CodArt esatto, o lotto univoco
@@ -90,6 +105,7 @@ class ArticleLookupService
         $esolverData = $this->getEsolverArticleData($esolverCodArt ?? $codGestionale);
 
         if ($esolverCodArt) {
+            $expiry = $this->getEsolverLotExpiry($esolverCodArt, $esolverLot) ?? $qrEmbeddedExpiry;
             return [
                 'found'        => true,
                 'source'       => $accessResult['found'] ? 'sqlsrv+access' : 'sqlsrv',
@@ -98,21 +114,23 @@ class ArticleLookupService
                 'um'           => $esolverData['um'] ?: ($accessResult['um'] ?? ''),
                 'lot'          => $esolverLot,
                 'lot_match'    => true,
-                'expiry_date'  => $this->getEsolverLotExpiry($esolverCodArt, $esolverLot),
+                'expiry_date'  => $expiry,
             ];
         }
 
         if ($accessResult['found']) {
+            $expiry = ($esolverData['um'] ? $this->getEsolverLotExpiry($codGestionale, $esolverLot) : null) ?? $qrEmbeddedExpiry;
             return array_merge($accessResult, [
                 'lot'          => $esolverLot,
                 'description'  => $esolverData['description'] ?: $accessResult['description'],
                 'um'           => $esolverData['um'] ?: $accessResult['um'],
                 'source'       => $esolverData['um'] ? 'sqlsrv+access' : 'access',
-                'expiry_date'  => $esolverData['um'] ? $this->getEsolverLotExpiry($codGestionale, $esolverLot) : null,
+                'expiry_date'  => $expiry,
             ]);
         }
 
         if ($esolverData['description'] || $esolverData['um']) {
+            $expiry = $this->getEsolverLotExpiry($codGestionale, $esolverLot) ?? $qrEmbeddedExpiry;
             return [
                 'found'        => true,
                 'source'       => 'sqlsrv',
@@ -121,7 +139,7 @@ class ArticleLookupService
                 'um'           => $esolverData['um'],
                 'lot'          => $esolverLot,
                 'lot_match'    => false,
-                'expiry_date'  => $this->getEsolverLotExpiry($codGestionale, $esolverLot),
+                'expiry_date'  => $expiry,
             ];
         }
 
