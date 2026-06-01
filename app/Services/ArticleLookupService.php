@@ -24,16 +24,17 @@ class ArticleLookupService
             } catch (Throwable) {}
         }
 
-        // QR format — two variants detected by content before first '#':
-        // - Esolver:   {digits}{CodArt}#{10}{lot}      e.g. 241PISTACCSGUSCINTEROESTE-SL#102712
-        // - OmniTrack: {lot}#37{qty}#15{YYMMDD}        e.g. 7891-14326112#371080#15271119
-        //   (part before first '#' is purely numeric+dash → OmniTrack)
+        // QR format — two variants:
+        // - Esolver:   {digits}{CodArt}#{10}{lot}   e.g. 241PISTACCSGUSCINTEROESTE-SL#102712
+        //              → part before '#' contains letters (article code)
+        // - OmniTrack: {lot}#37{qty}#15{YYMMDD}    e.g. 7891-14326112#371080#15271119
+        //              → part before '#' is only digits and dashes (no letters)
         if (str_contains($scanned, '#')) {
             $beforeHash = explode('#', $scanned, 2)[0];
-            if (preg_match('/^\d+(-\d+)*$/', $beforeHash)) {
-                $result = $this->lookupOmnitrackQr($scanned);
-            } else {
+            if (preg_match('/[a-zA-Z]/', $beforeHash)) {
                 $result = $this->lookupQr($scanned);
+            } else {
+                $result = $this->lookupOmnitrackQr($scanned);
             }
             return $this->mergeAccessExpiry($result, $accessExpiry);
         }

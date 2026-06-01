@@ -220,7 +220,8 @@ async function doLookup(lotValue) {
             });
             window.location.href = '{{ route('article') }}?' + params.toString();
         } else {
-            showNotFound(lotValue);
+            // Use the lot parsed by the server (strips QR extra fields like #37/#15)
+            showNotFound(data.lot || lotValue);
         }
     } catch (err) {
         setLoading(false);
