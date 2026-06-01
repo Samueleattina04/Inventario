@@ -190,9 +190,33 @@ function manualLookup() {
     doLookup(lot);
 }
 
+// Parse OmniTrack QR before sending to server:
+// Format: {lot}#37{qty}#15{YYMMDD}  e.g. 7891-14326112#371080#15271119
+// If no letters before first '#' → OmniTrack; extract lot and expiry client-side.
+function parseQrInput(raw) {
+    if (!raw.includes('#')) return { lot: raw, expiry: '' };
+    const beforeHash = raw.split('#')[0];
+    if (/[a-zA-Z]/.test(beforeHash)) return { lot: raw, expiry: '' }; // Esolver QR: send as-is
+    // OmniTrack QR: strip #37... and #15... fields
+    const lot = beforeHash;
+    let expiry = '';
+    const m = raw.match(/#15(\d{6})/);
+    if (m) {
+        const yy = m[1].slice(0, 2);
+        const mm = m[1].slice(2, 4);
+        const dd = m[1].slice(4, 6);
+        expiry = `20${yy}-${mm}-${dd}`;
+    }
+    return { lot, expiry };
+}
+
 async function doLookup(lotValue) {
     setLoading(true);
     hideNotFound();
+
+    const parsed   = parseQrInput(lotValue.trim());
+    const sendLot  = parsed.lot;
+    const clientExpiry = parsed.expiry;
 
     try {
         const resp = await fetch('{{ route('api.article-lookup') }}', {
@@ -202,7 +226,7 @@ async function doLookup(lotValue) {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ lot: lotValue, scan_type: 'unified' }),
+            body: JSON.stringify({ lot: sendLot, scan_type: 'unified' }),
         });
 
         const data = await resp.json();
@@ -214,14 +238,13 @@ async function doLookup(lotValue) {
                 description:  data.description,
                 um:           data.um,
                 lot:          data.lot,
-                expiry_date:  data.expiry_date ?? '',
+                expiry_date:  data.expiry_date || clientExpiry,
                 db_source:    data.source,
                 lot_match:    data.lot_match ? '1' : '0',
             });
             window.location.href = '{{ route('article') }}?' + params.toString();
         } else {
-            // Use the lot parsed by the server (strips QR extra fields like #37/#15)
-            showNotFound(data.lot || lotValue);
+            showNotFound(sendLot);
         }
     } catch (err) {
         setLoading(false);
