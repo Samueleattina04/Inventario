@@ -24,9 +24,17 @@ class ArticleLookupService
             } catch (Throwable) {}
         }
 
-        // QR format:  {digits}{CodGestionale}#{lotId}  e.g. 241PISTACCSGUSCINTEROESTE-SL#102712
+        // QR format — two variants detected by content before first '#':
+        // - Esolver:   {digits}{CodArt}#{10}{lot}      e.g. 241PISTACCSGUSCINTEROESTE-SL#102712
+        // - OmniTrack: {lot}#37{qty}#15{YYMMDD}        e.g. 7891-14326112#371080#15271119
+        //   (part before first '#' is purely numeric+dash → OmniTrack)
         if (str_contains($scanned, '#')) {
-            $result = $this->lookupQr($scanned);
+            $beforeHash = explode('#', $scanned, 2)[0];
+            if (preg_match('/^\d+(-\d+)*$/', $beforeHash)) {
+                $result = $this->lookupOmnitrackQr($scanned);
+            } else {
+                $result = $this->lookupQr($scanned);
+            }
             return $this->mergeAccessExpiry($result, $accessExpiry);
         }
 
@@ -117,6 +125,52 @@ class ArticleLookupService
         }
 
         return $this->notFound($scanned);
+    }
+
+    // ── OmniTrack QR lookup ───────────────────────────────────────────────────
+    // Format: {lot}#37{qty}#15{YYMMDD}   e.g. 7891-14326112#371080#15271119
+    //   #37 = quantity placeholder (ignored — user enters manually)
+    //   #15 = expiry date in YYMMDD format  →  271119 = 19/11/2027
+
+    private function lookupOmnitrackQr(string $scanned): array
+    {
+        // Lot is everything before the first '#'
+        $lot = explode('#', $scanned, 2)[0];
+
+        // Extract expiry from '#15YYMMDD'
+        $expiryDate = null;
+        if (preg_match('/#15(\d{6})/', $scanned, $m)) {
+            $yy = substr($m[1], 0, 2);
+            $mm = substr($m[1], 2, 2);
+            $dd = substr($m[1], 4, 2);
+            try {
+                $expiryDate = \Carbon\Carbon::createFromFormat('Y-m-d', "20{$yy}-{$mm}-{$dd}")->format('Y-m-d');
+            } catch (Throwable) {}
+        }
+
+        Log::info('OmniTrack QR lookup', ['raw' => $scanned, 'lot' => $lot, 'expiry' => $expiryDate]);
+
+        [$id, $type] = $this->parseLot($lot);
+
+        // 1. Esolver: lot might exist in MagProgrLotto
+        $result = $this->lookupEsolverByFullLot($lot, $id);
+        if ($result['found']) {
+            if ($expiryDate && empty($result['expiry_date'])) {
+                $result['expiry_date'] = $expiryDate;
+            }
+            return $result;
+        }
+
+        // 2. Access: find product by ID prefix (lot_match:false — product found, not the specific lot)
+        if ($type !== 'invalid') {
+            $result = $this->lookupAccessById($lot, $id, $type);
+            if ($result['found']) {
+                if ($expiryDate) $result['expiry_date'] = $expiryDate;
+                return $result;
+            }
+        }
+
+        return $this->notFound($lot);
     }
 
     // ── Barcode / manual lookup ───────────────────────────────────────────────
