@@ -126,7 +126,7 @@ class ScanController extends Controller
             return redirect()->route('location');
         }
 
-        InventoryRecord::create([
+        $record = InventoryRecord::create([
             'user_id'      => Auth::id(),
             'warehouse_id' => session('warehouse_id'),
             'area_id'      => session('area_id'),
@@ -141,6 +141,14 @@ class ScanController extends Controller
             'sample_weight'=> $request->sample_weight,
             'total_weight' => $request->total_weight,
             'notes'        => $request->notes,
+        ]);
+
+        \App\Models\ActivityLog::create([
+            'user_id'      => \Auth::id(),
+            'action'       => 'scan_save',
+            'subject_type' => 'InventoryRecord',
+            'subject_id'   => $record->id,
+            'description'  => "Scansione articolo {$record->article_code} lotto {$record->lot} qty {$record->quantity}",
         ]);
 
         return redirect()->route('scan')->with('success', 'Articolo salvato con successo.');

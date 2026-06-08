@@ -27,6 +27,9 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
         if (! empty($this->filters['warehouse_id'])) {
             $query->where('warehouse_id', $this->filters['warehouse_id']);
         }
+        if (! empty($this->filters['area_id'])) {
+            $query->where('area_id', $this->filters['area_id']);
+        }
         if (! empty($this->filters['user_id'])) {
             $query->where('user_id', $this->filters['user_id']);
         }

@@ -72,6 +72,7 @@
                     <i class="bi bi-speedometer2 me-2"></i>Dashboard
                 </a>
             </li>
+            @if(auth()->user()->isAdmin())
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}"
                    href="{{ route('admin.users.index') }}">
@@ -84,12 +85,21 @@
                     <i class="bi bi-building me-2"></i>Magazzini/Aree
                 </a>
             </li>
+            @endif
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.inventory.*') ? 'active' : '' }}"
                    href="{{ route('admin.inventory.index') }}">
                     <i class="bi bi-table me-2"></i>Inventario
                 </a>
             </li>
+            @if(auth()->user()->isAdmin())
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.activity_log.*') ? 'active' : '' }}"
+                   href="{{ route('admin.activity_log.index') }}">
+                    <i class="bi bi-clock-history me-2"></i>Log Attività
+                </a>
+            </li>
+            @endif
         </ul>
         <div class="sidebar-section mt-3">Account</div>
         <ul class="nav flex-column mt-1 pb-3">

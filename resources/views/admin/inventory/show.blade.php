@@ -13,6 +13,7 @@
         <a href="{{ route('admin.inventory.edit', $record) }}" class="btn btn-warning btn-sm">
             <i class="bi bi-pencil me-1"></i>Modifica
         </a>
+        @if(auth()->user()->isAdmin())
         <form method="POST" action="{{ route('admin.inventory.destroy', $record) }}"
               onsubmit="return confirm('Eliminare questa registrazione?')">
             @csrf @method('DELETE')
@@ -20,6 +21,7 @@
                 <i class="bi bi-trash me-1"></i>Elimina
             </button>
         </form>
+        @endif
         <a href="{{ route('admin.inventory.index') }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Torna alla lista
         </a>

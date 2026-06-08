@@ -26,6 +26,16 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    public function isBackoffice(): bool
+    {
+        return $this->role === 'backoffice';
+    }
+
+    public function isAdminOrBackoffice(): bool
+    {
+        return in_array($this->role, ['admin', 'backoffice']);
+    }
+
     public function inventoryRecords()
     {
         return $this->hasMany(InventoryRecord::class);

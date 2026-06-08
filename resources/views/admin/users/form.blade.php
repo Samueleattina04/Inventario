@@ -82,6 +82,9 @@
                             <option value="operator" {{ old('role', $user?->role) === 'operator' ? 'selected' : '' }}>
                                 Operatore
                             </option>
+                            <option value="backoffice" {{ old('role', $user?->role) === 'backoffice' ? 'selected' : '' }}>
+                                Backoffice
+                            </option>
                             <option value="admin" {{ old('role', $user?->role) === 'admin' ? 'selected' : '' }}>
                                 Amministratore
                             </option>

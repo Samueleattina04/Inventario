@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Exports\InventoryExport;
 use App\Http\Controllers\Controller;
+use App\Models\Area;
 use App\Models\InventoryRecord;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -22,9 +23,10 @@ class InventoryController extends Controller
 
         $records    = $query->paginate(30)->withQueryString();
         $warehouses = Warehouse::orderBy('name')->get();
+        $areas      = Area::orderBy('name')->get();
         $operators  = User::where('role', 'operator')->orderBy('name')->get();
 
-        return view('admin.inventory.index', compact('records', 'warehouses', 'operators'));
+        return view('admin.inventory.index', compact('records', 'warehouses', 'areas', 'operators'));
     }
 
     public function grouped(Request $request)
@@ -85,9 +87,23 @@ class InventoryController extends Controller
             'quantity.min'          => 'La quantità non può essere negativa.',
         ]);
 
+        $oldValues = $record->only(['article_code', 'description', 'um', 'lot', 'expiry_date', 'quantity', 'notes']);
+
         $record->update($request->only([
             'article_code', 'description', 'um', 'lot', 'expiry_date', 'quantity', 'notes',
         ]));
+
+        $newValues = $record->fresh()->only(['article_code', 'description', 'um', 'lot', 'expiry_date', 'quantity', 'notes']);
+
+        \App\Models\ActivityLog::create([
+            'user_id'      => \Auth::id(),
+            'action'       => 'admin_edit',
+            'subject_type' => 'InventoryRecord',
+            'subject_id'   => $record->id,
+            'old_values'   => $oldValues,
+            'new_values'   => $newValues,
+            'description'  => "Modifica registrazione #{$record->id} articolo {$record->article_code}",
+        ]);
 
         return redirect()->route('admin.inventory.index')
             ->with('success', 'Registrazione aggiornata.');
@@ -95,6 +111,14 @@ class InventoryController extends Controller
 
     public function destroy(InventoryRecord $record)
     {
+        \App\Models\ActivityLog::create([
+            'user_id'      => \Auth::id(),
+            'action'       => 'admin_delete',
+            'subject_type' => 'InventoryRecord',
+            'subject_id'   => $record->id,
+            'description'  => "Eliminazione registrazione #{$record->id} articolo {$record->article_code} lotto {$record->lot}",
+        ]);
+
         $record->delete();
         return redirect()->route('admin.inventory.index')
             ->with('success', 'Registrazione eliminata.');
@@ -102,7 +126,7 @@ class InventoryController extends Controller
 
     public function export(Request $request)
     {
-        $filters  = $request->only(['date_from', 'date_to', 'warehouse_id', 'user_id', 'source']);
+        $filters  = $request->only(['date_from', 'date_to', 'warehouse_id', 'area_id', 'user_id', 'source']);
         $filename = 'inventario_' . now()->format('Ymd_His') . '.xlsx';
         return Excel::download(new InventoryExport($filters), $filename);
     }
@@ -117,6 +141,9 @@ class InventoryController extends Controller
         }
         if ($request->filled('warehouse_id')) {
             $query->where('warehouse_id', $request->warehouse_id);
+        }
+        if ($request->filled('area_id')) {
+            $query->where('area_id', $request->area_id);
         }
         if ($request->filled('user_id')) {
             $query->where('user_id', $request->user_id);

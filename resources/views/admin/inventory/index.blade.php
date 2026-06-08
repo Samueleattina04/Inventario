@@ -9,14 +9,16 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0"><i class="bi bi-table me-2 text-primary"></i>Registro Inventario</h4>
     <div class="d-flex gap-2">
-        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','user_id','source'])) }}"
+        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source'])) }}"
            class="btn btn-outline-primary btn-sm">
             <i class="bi bi-layers me-1"></i>Per Articolo
         </a>
-        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','user_id','source'])) }}"
+        @if(auth()->user()->isAdmin())
+        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source'])) }}"
            class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
         </a>
+        @endif
     </div>
 </div>
 
@@ -29,7 +31,7 @@
         'access'    => ['label' => 'Access',       'class' => 'btn-info text-dark'],
         'not_found' => ['label' => 'Non trovati',  'class' => 'btn-warning text-dark'],
     ] as $val => $opt)
-        <a href="{{ route('admin.inventory.index') }}?{{ http_build_query(array_merge(request()->only(['date_from','date_to','warehouse_id','user_id']), ['source' => $val])) }}"
+        <a href="{{ route('admin.inventory.index') }}?{{ http_build_query(array_merge(request()->only(['date_from','date_to','warehouse_id','area_id','user_id']), ['source' => $val])) }}"
            class="btn btn-sm {{ $activeSource === $val ? $opt['class'] : 'btn-outline-'.explode('-',$opt['class'])[1] }}">
             {{ $opt['label'] }}
         </a>
@@ -59,6 +61,15 @@
                 </select>
             </div>
             <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold small">Area</label>
+                <select name="area_id" class="form-select">
+                    <option value="">Tutte</option>
+                    @foreach($areas as $a)
+                        <option value="{{ $a->id }}" {{ request('area_id') == $a->id ? 'selected' : '' }}>{{ $a->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
                 <label class="form-label fw-semibold small">Operatore</label>
                 <select name="user_id" class="form-select">
                     <option value="">Tutti</option>
@@ -67,7 +78,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-12 col-md-2 d-flex gap-2">
+            <div class="col-6 col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-funnel me-1"></i>Filtra</button>
                 <a href="{{ route('admin.inventory.index') }}" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
             </div>
@@ -147,6 +158,7 @@
                         <a href="{{ route('admin.inventory.edit', $record) }}" class="btn btn-sm btn-outline-warning" title="Modifica">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        @if(auth()->user()->isAdmin())
                         <form method="POST" action="{{ route('admin.inventory.destroy', $record) }}" class="d-inline"
                               onsubmit="return confirm('Eliminare la registrazione #{{ $record->id }}?')">
                             @csrf @method('DELETE')
@@ -154,6 +166,7 @@
                                 <i class="bi bi-trash"></i>
                             </button>
                         </form>
+                        @endif
                     </td>
                 </tr>
                 @empty
