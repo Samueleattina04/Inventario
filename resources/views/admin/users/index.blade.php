@@ -48,6 +48,8 @@
                         <td>
                             @if($user->role === 'admin')
                                 <span class="badge bg-danger">Admin</span>
+                            @elseif($user->role === 'backoffice')
+                                <span class="badge bg-info text-dark">Backoffice</span>
                             @else
                                 <span class="badge bg-secondary">Operatore</span>
                             @endif
