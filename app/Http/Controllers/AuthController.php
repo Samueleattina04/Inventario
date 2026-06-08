@@ -10,7 +10,7 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (Auth::check()) {
-            return redirect(Auth::user()->isAdmin() ? route('admin.dashboard') : route('location'));
+            return redirect(Auth::user()->isAdminOrBackoffice() ? route('admin.dashboard') : route('location'));
         }
         return view('auth.login');
     }
@@ -32,7 +32,7 @@ class AuthController extends Controller
 
             $request->session()->regenerate();
 
-            return redirect($user->isAdmin() ? route('admin.dashboard') : route('location'));
+            return redirect($user->isAdminOrBackoffice() ? route('admin.dashboard') : route('location'));
         }
 
         return back()->withErrors([
