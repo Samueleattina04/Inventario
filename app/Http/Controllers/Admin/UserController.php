@@ -28,7 +28,7 @@ class UserController extends Controller
             'name'     => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users,username',
             'password' => 'required|string|min:6',
-            'role'     => 'required|in:admin,operator',
+            'role'     => 'required|in:admin,operator,backoffice',
             'active'   => 'boolean',
         ]);
 
@@ -55,7 +55,7 @@ class UserController extends Controller
             'name'     => 'required|string|max:255',
             'username' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:6',
-            'role'     => 'required|in:admin,operator',
+            'role'     => 'required|in:admin,operator,backoffice',
             'active'   => 'boolean',
         ]);
 
