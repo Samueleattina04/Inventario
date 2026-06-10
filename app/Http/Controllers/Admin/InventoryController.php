@@ -126,6 +126,7 @@ class InventoryController extends Controller
 
     public function export(Request $request)
     {
+        abort_unless(auth()->user()->isAdmin(), 403);
         $filters  = $request->only(['date_from', 'date_to', 'warehouse_id', 'area_id', 'user_id', 'source']);
         $filename = 'inventario_' . now()->format('Ymd_His') . '.xlsx';
         return Excel::download(new InventoryExport($filters), $filename);

@@ -34,6 +34,7 @@ Route::middleware(['auth', 'admin_or_backoffice'])->prefix('admin')->name('admin
 
     Route::get('/inventory',               [InventoryController::class, 'index'])->name('inventory.index');
     Route::get('/inventory/grouped',       [InventoryController::class, 'grouped'])->name('inventory.grouped');
+    Route::get('/inventory/export',        [InventoryController::class, 'export'])->name('inventory.export');
     Route::get('/inventory/{record}',      [InventoryController::class, 'show'])->name('inventory.show');
     Route::get('/inventory/{record}/edit', [InventoryController::class, 'edit'])->name('inventory.edit');
     Route::put('/inventory/{record}',      [InventoryController::class, 'update'])->name('inventory.update');
@@ -48,7 +49,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('warehouses/{warehouse}/areas/{area}',    [WarehouseController::class, 'updateArea'])->name('warehouses.areas.update');
     Route::delete('warehouses/{warehouse}/areas/{area}', [WarehouseController::class, 'destroyArea'])->name('warehouses.areas.destroy');
 
-    Route::get('/inventory/export',        [InventoryController::class, 'export'])->name('inventory.export');
     Route::delete('/inventory/{record}',   [InventoryController::class, 'destroy'])->name('inventory.destroy');
 
     Route::get('/activity-log', [ActivityLogController::class, 'index'])->name('activity_log.index');
