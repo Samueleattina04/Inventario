@@ -9,6 +9,7 @@ use Throwable;
 
 class ArticleLookupService
 {
+    private ?PDO $accessPdoInstance = null;
     // ── Entry point ───────────────────────────────────────────────────────────
 
     public function lookup(string $scanned): array
@@ -537,12 +538,17 @@ class ArticleLookupService
 
     private function accessPdo(): PDO
     {
+        if ($this->accessPdoInstance !== null) {
+            return $this->accessPdoInstance;
+        }
+
         $dsn      = config('database.access_odbc.dsn', '');
         $username = config('database.access_odbc.username', '') ?: null;
         $password = config('database.access_odbc.password', '') ?: null;
 
         $pdo = new PDO('odbc:' . $dsn, $username, $password);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $this->accessPdoInstance = $pdo;
         return $pdo;
     }
 

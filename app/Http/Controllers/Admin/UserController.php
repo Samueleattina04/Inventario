@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -83,7 +84,12 @@ class UserController extends Controller
                 ->with('error', 'Non puoi eliminare il tuo account.');
         }
 
-        $user->delete();
+        try {
+            $user->delete();
+        } catch (QueryException $e) {
+            return redirect()->route('admin.users.index')
+                ->with('error', "Impossibile eliminare l'utente: ha registrazioni o log associati. Disattivalo invece di eliminarlo.");
+        }
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Utente eliminato con successo.');
