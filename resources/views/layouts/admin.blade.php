@@ -49,9 +49,17 @@
             padding: 0.6rem 1rem;
         }
         .btn { min-height: 38px; }
+        #sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1049;
+        }
+        #sidebar-backdrop.show { display: block; }
         @media (max-width: 768px) {
             #sidebar { display: none; }
-            #sidebar.show { display: block; position: fixed; z-index: 1050; top: 0; left: 0; }
+            #sidebar.show { display: block; position: fixed; z-index: 1050; top: 0; left: 0; height: 100vh; overflow-y: auto; }
         }
         @yield('extra-styles')
     </style>
@@ -119,6 +127,9 @@
         </ul>
     </nav>
 
+    <!-- Sidebar backdrop (mobile) -->
+    <div id="sidebar-backdrop"></div>
+
     <!-- Main content -->
     <div id="content">
         <!-- Top bar -->
@@ -155,16 +166,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('sidebarToggle')?.addEventListener('click', function () {
-        document.getElementById('sidebar').classList.toggle('show');
+    const sidebar   = document.getElementById('sidebar');
+    const backdrop  = document.getElementById('sidebar-backdrop');
+    const toggle    = document.getElementById('sidebarToggle');
+
+    function openSidebar() {
+        sidebar.classList.add('show');
+        backdrop.classList.add('show');
+    }
+    function closeSidebar() {
+        sidebar.classList.remove('show');
+        backdrop.classList.remove('show');
+    }
+
+    toggle?.addEventListener('click', function () {
+        sidebar.classList.contains('show') ? closeSidebar() : openSidebar();
     });
-    document.addEventListener('click', function (e) {
-        const sidebar = document.getElementById('sidebar');
-        const toggle = document.getElementById('sidebarToggle');
-        if (sidebar && !sidebar.contains(e.target) && toggle && !toggle.contains(e.target)) {
-            sidebar.classList.remove('show');
-        }
-    });
+    backdrop.addEventListener('click', closeSidebar);
 </script>
 @yield('scripts')
 </body>
