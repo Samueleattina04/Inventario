@@ -16,6 +16,8 @@ class InventoryController extends Controller
 {
     public function index(Request $request)
     {
+        request()->session()->save();
+
         $query = $this->applyFilters(
             InventoryRecord::with(['user', 'warehouse', 'area'])->orderByDesc('created_at'),
             $request

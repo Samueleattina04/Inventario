@@ -12,6 +12,8 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        request()->session()->save();
+
         $todayCount = InventoryRecord::whereDate('created_at', today())->count();
         $totalCount = InventoryRecord::count();
 
@@ -39,6 +41,8 @@ class DashboardController extends Controller
 
     public function stats()
     {
+        request()->session()->save();
+
         $todayCount = InventoryRecord::whereDate('created_at', today())->count();
         $totalCount = InventoryRecord::count();
 

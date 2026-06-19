@@ -11,6 +11,8 @@ class WarehouseController extends Controller
 {
     public function index()
     {
+        request()->session()->save();
+
         $warehouses = Warehouse::with(['areas' => fn($q) => $q->orderBy('name')])
             ->orderBy('name')
             ->get();

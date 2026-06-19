@@ -129,8 +129,11 @@
 
 @section('scripts')
 <script>
-// Auto-refresh every 30 seconds
-setInterval(async function() {
+let statsRefreshPending = false;
+
+async function refreshStats() {
+    if (statsRefreshPending || document.hidden) return;
+    statsRefreshPending = true;
     try {
         const resp = await fetch('{{ route('admin.api.stats') }}', {
             headers: { 'Accept': 'application/json' }
@@ -140,7 +143,6 @@ setInterval(async function() {
         document.getElementById('todayCount').textContent = data.today_count;
         document.getElementById('totalCount').textContent = data.total_count;
 
-        // Rebuild last records table
         const tbody = document.querySelector('#lastRecordsTable tbody');
         if (tbody && data.last_records) {
             tbody.innerHTML = data.last_records.map(r => `
@@ -160,7 +162,11 @@ setInterval(async function() {
         document.getElementById('lastRefresh').textContent = 'Aggiornato ' + new Date().toLocaleTimeString('it-IT');
     } catch(e) {
         // silently ignore
+    } finally {
+        statsRefreshPending = false;
     }
-}, 30000);
+}
+
+setInterval(refreshStats, 60000);
 </script>
 @endsection
