@@ -93,7 +93,7 @@ class ScanController extends Controller
         }
 
         $areaId = session('area_id');
-        $area   = Area::findOrFail($areaId);
+        $area   = $areaId ? Area::findOrFail($areaId) : null;
 
         $data = [
             'article_code' => $request->query('article_code', ''),

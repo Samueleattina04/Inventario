@@ -108,8 +108,8 @@ class WarehouseController extends Controller
         $area->update([
             'name'                  => $request->name,
             'code'                  => strtoupper($request->code),
-            'has_weight_calculator' => $request->boolean('has_weight_calculator', false),
-            'active'                => $request->boolean('active', true),
+            'has_weight_calculator' => $request->boolean('has_weight_calculator'),
+            'active'                => $request->boolean('active'),
         ]);
 
         return redirect()->route('admin.warehouses.index')
