@@ -233,7 +233,8 @@ function calculateQty() {
     }
 
     const qty = (netWeight / sw) * sc;
-    document.getElementById('quantity').value = qty.toFixed(4);
+    const display = Number.isInteger(qty) ? qty.toString() : parseFloat(qty.toFixed(4)).toString();
+    document.getElementById('quantity').value = display;
     document.getElementById('quantity').focus();
     document.getElementById('quantity').select();
 }
