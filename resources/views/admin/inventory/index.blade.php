@@ -9,12 +9,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0"><i class="bi bi-table me-2 text-primary"></i>Registro Inventario</h4>
     <div class="d-flex gap-2">
-        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source'])) }}"
+        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source','search'])) }}"
            class="btn btn-outline-primary btn-sm">
             <i class="bi bi-layers me-1"></i>Per Articolo
         </a>
         @if(auth()->user()->isAdmin())
-        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source'])) }}"
+        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source','search'])) }}"
            class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
         </a>
@@ -31,7 +31,7 @@
         'access'    => ['label' => 'Access',       'class' => 'btn-info text-dark'],
         'not_found' => ['label' => 'Non trovati',  'class' => 'btn-warning text-dark'],
     ] as $val => $opt)
-        <a href="{{ route('admin.inventory.index') }}?{{ http_build_query(array_merge(request()->only(['date_from','date_to','warehouse_id','area_id','user_id']), ['source' => $val])) }}"
+        <a href="{{ route('admin.inventory.index') }}?{{ http_build_query(array_merge(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','search']), ['source' => $val])) }}"
            class="btn btn-sm {{ $activeSource === $val ? $opt['class'] : 'btn-outline-'.explode('-',$opt['class'])[1] }}">
             {{ $opt['label'] }}
         </a>
@@ -43,7 +43,12 @@
     <div class="card-body">
         <form method="GET" action="{{ route('admin.inventory.index') }}" class="row g-3 align-items-end">
             <input type="hidden" name="source" value="{{ request('source') }}">
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold small">Codice / Lotto</label>
+                <input type="text" name="search" class="form-control" placeholder="Cerca codice articolo o lotto..."
+                    value="{{ request('search') }}">
+            </div>
+            <div class="col-6 col-md-2">
                 <label class="form-label fw-semibold small">Dal</label>
                 <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
             </div>
