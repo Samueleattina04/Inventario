@@ -109,52 +109,53 @@
                         </div>
                     @endif
 
-                    {{-- Weight calculator (if area has it) --}}
-                    @if($area->has_weight_calculator)
-                        <div class="weight-calc p-3 mb-3">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <h6 class="mb-0 fw-bold text-info">
-                                    <i class="bi bi-calculator me-2"></i>Calcolatore Peso
-                                </h6>
-                                <button type="button" class="btn btn-sm btn-outline-info" id="calcToggle"
-                                    onclick="toggleCalc()">
-                                    <i class="bi bi-chevron-down"></i>
-                                </button>
-                            </div>
-                            <div id="calcBody">
-                                <div class="row g-2 mb-2">
-                                    <div class="col-4">
-                                        <label class="form-label small fw-semibold">Pezzi campione</label>
-                                        <input type="number" id="sample_count_calc" name="sample_count"
-                                            class="form-control text-center" min="1" placeholder="N."
-                                            value="{{ old('sample_count') }}">
-                                    </div>
-                                    <div class="col-4">
-                                        <label class="form-label small fw-semibold">Peso campione (kg)</label>
-                                        <input type="number" id="sample_weight_calc" name="sample_weight"
-                                            class="form-control text-center" step="0.001" min="0.001" placeholder="kg"
-                                            value="{{ old('sample_weight') }}">
-                                    </div>
-                                    <div class="col-4">
-                                        <label class="form-label small fw-semibold">Peso totale (kg)</label>
-                                        <input type="number" id="total_weight_calc" name="total_weight"
-                                            class="form-control text-center" step="0.001" min="0" placeholder="kg"
-                                            value="{{ old('total_weight') }}">
-                                    </div>
+                    {{-- Weight calculator (always available, collapsed by default) --}}
+                    <div class="weight-calc p-3 mb-3">
+                        <button type="button"
+                            class="btn btn-sm btn-outline-info w-100 d-flex align-items-center justify-content-between"
+                            id="calcToggle" onclick="toggleCalc()">
+                            <span class="fw-bold">
+                                <i class="bi bi-calculator me-2"></i>Calcolatore Peso
+                            </span>
+                            <i class="bi bi-chevron-right" id="calcChevron"></i>
+                        </button>
+                        <div id="calcBody" style="display:none" class="mt-3">
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label class="form-label small fw-semibold">Pezzi campione</label>
+                                    <input type="number" id="sample_count_calc" name="sample_count"
+                                        class="form-control text-center" min="1" placeholder="N."
+                                        value="{{ old('sample_count') }}">
                                 </div>
-                                <button type="button" class="btn btn-info w-100 text-white fw-bold" onclick="calculateQty()">
-                                    <i class="bi bi-calculator me-2"></i>Calcola Quantità
-                                </button>
-                                <small class="text-muted d-block text-center mt-1">
-                                    Formula: (Peso totale ÷ Peso campione) × Pezzi campione
-                                </small>
+                                <div class="col-6">
+                                    <label class="form-label small fw-semibold">Peso campione (kg)</label>
+                                    <input type="number" id="sample_weight_calc" name="sample_weight"
+                                        class="form-control text-center" step="0.001" min="0.001" placeholder="kg"
+                                        value="{{ old('sample_weight') }}">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-semibold">Peso totale (kg)</label>
+                                    <input type="number" id="total_weight_calc" name="total_weight"
+                                        class="form-control text-center" step="0.001" min="0" placeholder="kg"
+                                        value="{{ old('total_weight') }}">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-semibold">
+                                        Tara (kg) <span class="text-muted fw-normal">(opzionale)</span>
+                                    </label>
+                                    <input type="number" id="tare_calc"
+                                        class="form-control text-center" step="0.001" min="0" placeholder="0"
+                                        value="{{ old('tare_calc', 0) }}">
+                                </div>
                             </div>
+                            <button type="button" class="btn btn-info w-100 text-white fw-bold" onclick="calculateQty()">
+                                <i class="bi bi-calculator me-2"></i>Calcola Quantità
+                            </button>
+                            <small class="text-muted d-block text-center mt-1">
+                                Formula: ((Peso totale − Tara) ÷ Peso campione) × Pezzi campione
+                            </small>
                         </div>
-                    @else
-                        <input type="hidden" name="sample_count" value="">
-                        <input type="hidden" name="sample_weight" value="">
-                        <input type="hidden" name="total_weight" value="">
-                    @endif
+                    </div>
 
                     {{-- Quantity --}}
                     <div class="mb-3">
@@ -215,31 +216,34 @@
 @section('scripts')
 <script>
 function calculateQty() {
-    const sc = parseFloat(document.getElementById('sample_count_calc')?.value);
-    const sw = parseFloat(document.getElementById('sample_weight_calc')?.value);
-    const tw = parseFloat(document.getElementById('total_weight_calc')?.value);
+    const sc   = parseFloat(document.getElementById('sample_count_calc').value);
+    const sw   = parseFloat(document.getElementById('sample_weight_calc').value);
+    const tw   = parseFloat(document.getElementById('total_weight_calc').value);
+    const tare = parseFloat(document.getElementById('tare_calc').value) || 0;
 
-    if (!sc || !sw || sw === 0 || isNaN(tw)) {
-        alert('Inserisci tutti i valori per il calcolo.');
+    if (!sc || sc <= 0 || !sw || sw <= 0 || isNaN(tw) || tw <= 0) {
+        alert('Inserisci pezzi campione, peso campione e peso totale per il calcolo.');
         return;
     }
 
-    const qty = (tw / sw) * sc;
+    const netWeight = tw - tare;
+    if (netWeight <= 0) {
+        alert('Il peso netto (peso totale − tara) deve essere maggiore di zero.');
+        return;
+    }
+
+    const qty = (netWeight / sw) * sc;
     document.getElementById('quantity').value = qty.toFixed(4);
     document.getElementById('quantity').focus();
     document.getElementById('quantity').select();
 }
 
 function toggleCalc() {
-    const body = document.getElementById('calcBody');
-    const btn = document.getElementById('calcToggle');
-    if (body.style.display === 'none') {
-        body.style.display = '';
-        btn.innerHTML = '<i class="bi bi-chevron-down"></i>';
-    } else {
-        body.style.display = 'none';
-        btn.innerHTML = '<i class="bi bi-chevron-up"></i>';
-    }
+    const body    = document.getElementById('calcBody');
+    const chevron = document.getElementById('calcChevron');
+    const open    = body.style.display === 'none';
+    body.style.display    = open ? '' : 'none';
+    chevron.className     = open ? 'bi bi-chevron-down' : 'bi bi-chevron-right';
 }
 </script>
 @endsection
