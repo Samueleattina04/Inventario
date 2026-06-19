@@ -79,7 +79,6 @@
 <div class="card border-0 shadow-sm">
     <div class="card-header d-flex align-items-center justify-content-between">
         <span class="fw-semibold"><i class="bi bi-clock-history me-2"></i>Ultime registrazioni</span>
-        <small class="text-muted" id="lastRefresh">Aggiornato ora</small>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -127,46 +126,4 @@
 </div>
 @endsection
 
-@section('scripts')
-<script>
-let statsRefreshPending = false;
-
-async function refreshStats() {
-    if (statsRefreshPending || document.hidden) return;
-    statsRefreshPending = true;
-    try {
-        const resp = await fetch('{{ route('admin.api.stats') }}', {
-            headers: { 'Accept': 'application/json' }
-        });
-        const data = await resp.json();
-
-        document.getElementById('todayCount').textContent = data.today_count;
-        document.getElementById('totalCount').textContent = data.total_count;
-
-        const tbody = document.querySelector('#lastRecordsTable tbody');
-        if (tbody && data.last_records) {
-            tbody.innerHTML = data.last_records.map(r => `
-                <tr>
-                    <td class="text-nowrap"><small>${r.created_at}</small></td>
-                    <td>${r.operator ?? ''}</td>
-                    <td>
-                        <div class="fw-semibold">${r.article_code}</div>
-                        <small class="text-muted">${(r.description || '').substring(0, 30)}</small>
-                    </td>
-                    <td><small>${r.warehouse ?? ''} / ${r.area ?? ''}</small></td>
-                    <td class="text-end fw-bold">${parseFloat(r.quantity).toFixed(2)}</td>
-                </tr>
-            `).join('');
-        }
-
-        document.getElementById('lastRefresh').textContent = 'Aggiornato ' + new Date().toLocaleTimeString('it-IT');
-    } catch(e) {
-        // silently ignore
-    } finally {
-        statsRefreshPending = false;
-    }
-}
-
-setInterval(refreshStats, 60000);
-</script>
 @endsection
