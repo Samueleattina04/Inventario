@@ -49,7 +49,7 @@
                         @enderror
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-4" id="areaSection">
                         <label for="area_id" class="form-label fw-semibold fs-5">
                             <i class="bi bi-layers me-1"></i>Area
                         </label>
@@ -62,8 +62,11 @@
                             <option value="">— Prima seleziona un magazzino —</option>
                         </select>
                         @error('area_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
+                        <div id="areaAlert" class="alert alert-warning mt-2 d-none">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Seleziona un'area.
+                        </div>
                     </div>
 
                     <div class="d-grid">
@@ -95,16 +98,20 @@
 @section('scripts')
 <script>
 const warehouseSelect = document.getElementById('warehouse_id');
-const areaSelect = document.getElementById('area_id');
-const submitBtn = document.getElementById('submitBtn');
+const areaSelect      = document.getElementById('area_id');
+const submitBtn       = document.getElementById('submitBtn');
+const areaAlert       = document.getElementById('areaAlert');
+let warehouseHasAreas = false;
 
 function updateAreas(warehouseId) {
     areaSelect.innerHTML = '';
-    areaSelect.disabled = true;
-    submitBtn.disabled = true;
+    areaSelect.disabled  = true;
+    areaAlert.classList.add('d-none');
+    warehouseHasAreas    = false;
 
     if (!warehouseId) {
         areaSelect.innerHTML = '<option value="">— Prima seleziona un magazzino —</option>';
+        submitBtn.disabled   = true;
         return;
     }
 
@@ -114,21 +121,25 @@ function updateAreas(warehouseId) {
     const areas = JSON.parse(option.dataset.areas || '[]');
 
     if (areas.length === 0) {
-        areaSelect.innerHTML = '<option value="">Nessuna area disponibile</option>';
+        // Magazzino senza aree: si può procedere subito
+        areaSelect.innerHTML = '<option value="">Nessuna area</option>';
+        submitBtn.disabled   = false;
         return;
     }
 
+    // Magazzino con aree: area obbligatoria
+    warehouseHasAreas    = true;
     areaSelect.innerHTML = '<option value="">— Seleziona area —</option>';
     areas.forEach(area => {
-        const opt = document.createElement('option');
-        opt.value = area.id;
-        opt.textContent = `${area.name} (${area.code})`;
+        const opt       = document.createElement('option');
+        opt.value       = area.id;
+        opt.textContent = area.name;
         areaSelect.appendChild(opt);
     });
+    areaSelect.disabled  = false;
+    submitBtn.disabled   = true;
 
-    areaSelect.disabled = false;
-
-    // Restore old selection if present
+    // Ripristina selezione precedente
     const oldAreaId = '{{ old('area_id') }}';
     if (oldAreaId) {
         areaSelect.value = oldAreaId;
@@ -137,15 +148,20 @@ function updateAreas(warehouseId) {
 }
 
 areaSelect.addEventListener('change', function() {
-    submitBtn.disabled = !this.value;
+    areaAlert.classList.add('d-none');
+    submitBtn.disabled = warehouseHasAreas && !this.value;
 });
 
-// Init on page load if warehouse was pre-selected
-window.addEventListener('DOMContentLoaded', function() {
-    const savedWarehouse = warehouseSelect.value;
-    if (savedWarehouse) {
-        updateAreas(savedWarehouse);
+document.getElementById('locationForm').addEventListener('submit', function(e) {
+    if (warehouseHasAreas && !areaSelect.value) {
+        e.preventDefault();
+        areaAlert.classList.remove('d-none');
+        areaSelect.focus();
     }
+});
+
+window.addEventListener('DOMContentLoaded', function() {
+    if (warehouseSelect.value) updateAreas(warehouseSelect.value);
 });
 </script>
 @endsection

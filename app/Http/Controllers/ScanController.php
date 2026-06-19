@@ -25,19 +25,29 @@ class ScanController extends Controller
     {
         $request->validate([
             'warehouse_id' => 'required|exists:warehouses,id',
-            'area_id'      => 'required|exists:areas,id',
+            'area_id'      => 'nullable|exists:areas,id',
         ]);
 
-        $warehouse = Warehouse::findOrFail($request->warehouse_id);
-        $area      = Area::where('id', $request->area_id)
-            ->where('warehouse_id', $request->warehouse_id)
-            ->firstOrFail();
+        $warehouse = Warehouse::with('activeAreas')->findOrFail($request->warehouse_id);
+
+        $hasAreas = $warehouse->activeAreas->isNotEmpty();
+
+        if ($hasAreas && ! $request->filled('area_id')) {
+            return back()->withErrors(['area_id' => 'Seleziona un\'area.'])->withInput();
+        }
+
+        $area = null;
+        if ($request->filled('area_id')) {
+            $area = Area::where('id', $request->area_id)
+                ->where('warehouse_id', $request->warehouse_id)
+                ->firstOrFail();
+        }
 
         session([
             'warehouse_id'   => $warehouse->id,
             'warehouse_name' => $warehouse->name,
-            'area_id'        => $area->id,
-            'area_name'      => $area->name,
+            'area_id'        => $area?->id,
+            'area_name'      => $area?->name ?? '',
         ]);
 
         return redirect()->route('scan');
@@ -45,7 +55,7 @@ class ScanController extends Controller
 
     public function scanner()
     {
-        if (! session('warehouse_id') || ! session('area_id')) {
+        if (! session('warehouse_id')) {
             return redirect()->route('location');
         }
 
@@ -78,7 +88,7 @@ class ScanController extends Controller
 
     public function showArticle(Request $request)
     {
-        if (! session('warehouse_id') || ! session('area_id')) {
+        if (! session('warehouse_id')) {
             return redirect()->route('location');
         }
 
@@ -122,7 +132,7 @@ class ScanController extends Controller
             'quantity.min'          => 'La quantità non può essere negativa.',
         ]);
 
-        if (! session('warehouse_id') || ! session('area_id')) {
+        if (! session('warehouse_id')) {
             return redirect()->route('location');
         }
 
