@@ -101,21 +101,31 @@ class InventoryController extends Controller
                    'lot', 'expiry_date', 'quantity', 'sample_count', 'sample_weight',
                    'total_weight', 'notes'];
 
+        $record->load('warehouse', 'area');
         $oldValues = $record->only($fields);
+        $oldValues['warehouse_name'] = $record->warehouse?->name;
+        $oldValues['area_name']      = $record->area?->name;
 
         $record->update($request->only($fields));
+        $record->load('warehouse', 'area');
 
         $newValues = $record->fresh()->only($fields);
+        $newValues['warehouse_name'] = $record->warehouse?->name;
+        $newValues['area_name']      = $record->area?->name;
 
-        \App\Models\ActivityLog::create([
-            'user_id'      => \Auth::id(),
-            'action'       => 'admin_edit',
-            'subject_type' => 'InventoryRecord',
-            'subject_id'   => $record->id,
-            'old_values'   => $oldValues,
-            'new_values'   => $newValues,
-            'description'  => "Modifica registrazione #{$record->id} articolo {$record->article_code}",
-        ]);
+        $hasChanges = array_filter(array_keys($oldValues), fn($k) => ($oldValues[$k] ?? null) != ($newValues[$k] ?? null));
+
+        if ($hasChanges) {
+            \App\Models\ActivityLog::create([
+                'user_id'      => \Auth::id(),
+                'action'       => 'admin_edit',
+                'subject_type' => 'InventoryRecord',
+                'subject_id'   => $record->id,
+                'old_values'   => $oldValues,
+                'new_values'   => $newValues,
+                'description'  => "Modifica registrazione #{$record->id} articolo {$record->article_code}",
+            ]);
+        }
 
         $backUrl = session('inventory_index_url', route('admin.inventory.index'));
         return redirect($backUrl)->with('success', 'Registrazione aggiornata.');

@@ -126,13 +126,18 @@
                             <div class="collapse mt-2" id="changes-{{ $log->id }}">
                                 @php
                                     $fieldLabels = [
-                                        'article_code' => 'Codice',
-                                        'description'  => 'Descrizione',
-                                        'um'           => 'UM',
-                                        'lot'          => 'Lotto',
-                                        'expiry_date'  => 'Scadenza',
-                                        'quantity'     => 'Quantità',
-                                        'notes'        => 'Note',
+                                        'article_code'   => 'Codice articolo',
+                                        'description'    => 'Descrizione',
+                                        'um'             => 'UM',
+                                        'lot'            => 'Lotto',
+                                        'expiry_date'    => 'Scadenza',
+                                        'quantity'       => 'Quantità',
+                                        'notes'          => 'Note',
+                                        'warehouse_name' => 'Magazzino',
+                                        'area_name'      => 'Area',
+                                        'sample_count'   => 'Pezzi campione',
+                                        'sample_weight'  => 'Peso campione (kg)',
+                                        'total_weight'   => 'Peso totale (kg)',
                                     ];
                                     $oldVals = $log->old_values ?? [];
                                     $newVals = $log->new_values ?? [];
