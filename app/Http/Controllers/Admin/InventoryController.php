@@ -16,6 +16,7 @@ class InventoryController extends Controller
 {
     public function index(Request $request)
     {
+        request()->session()->put('inventory_index_url', $request->fullUrl());
         request()->session()->save();
 
         $query = $this->applyFilters(
@@ -115,8 +116,8 @@ class InventoryController extends Controller
             'description'  => "Modifica registrazione #{$record->id} articolo {$record->article_code}",
         ]);
 
-        return redirect()->route('admin.inventory.index')
-            ->with('success', 'Registrazione aggiornata.');
+        $backUrl = session('inventory_index_url', route('admin.inventory.index'));
+        return redirect($backUrl)->with('success', 'Registrazione aggiornata.');
     }
 
     public function destroy(InventoryRecord $record)
@@ -130,7 +131,8 @@ class InventoryController extends Controller
         ]);
 
         $record->delete();
-        return redirect()->route('admin.inventory.index')
+        $backUrl = session('inventory_index_url', route('admin.inventory.index'));
+        return redirect($backUrl)
             ->with('success', 'Registrazione eliminata.');
     }
 
