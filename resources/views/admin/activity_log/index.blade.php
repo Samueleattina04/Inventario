@@ -40,6 +40,8 @@
                     <option value="scan_save"    {{ request('action') === 'scan_save'    ? 'selected' : '' }}>Registrazione inventario</option>
                     <option value="admin_edit"   {{ request('action') === 'admin_edit'   ? 'selected' : '' }}>Modifica</option>
                     <option value="admin_delete" {{ request('action') === 'admin_delete' ? 'selected' : '' }}>Eliminazione</option>
+                    <option value="admin_hide"   {{ request('action') === 'admin_hide'   ? 'selected' : '' }}>Nascondi</option>
+                    <option value="admin_unhide" {{ request('action') === 'admin_unhide' ? 'selected' : '' }}>Ripristino</option>
                 </select>
             </div>
             <div class="col-12 col-md-2 d-flex gap-2">
@@ -97,12 +99,21 @@
                             <span class="badge bg-primary">{{ $log->action_label }}</span>
                         @elseif($log->action === 'admin_delete')
                             <span class="badge bg-danger">{{ $log->action_label }}</span>
+                        @elseif($log->action === 'admin_hide')
+                            <span class="badge bg-secondary">{{ $log->action_label }}</span>
+                        @elseif($log->action === 'admin_unhide')
+                            <span class="badge bg-info text-dark">{{ $log->action_label }}</span>
                         @else
                             <span class="badge bg-secondary">{{ $log->action_label }}</span>
                         @endif
                     </td>
                     <td>
                         <div class="small text-muted">{{ $log->description }}</div>
+                        @if($log->subject_type === 'InventoryRecord' && $log->action !== 'scan_save' && $log->inventoryRecord?->user)
+                        <div class="small text-muted mt-1">
+                            <i class="bi bi-person me-1"></i>Registrata da: <strong>{{ $log->inventoryRecord->user->name }}</strong>
+                        </div>
+                        @endif
                         @if($log->old_values)
                         <div class="mt-1">
                             <button class="btn btn-xs btn-outline-secondary btn-sm py-0 px-2"
