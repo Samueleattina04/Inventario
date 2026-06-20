@@ -168,14 +168,20 @@
                                    class="form-control text-center" step="0.001" min="0" placeholder="kg"
                                    value="{{ old('total_weight', $record->total_weight) }}">
                         </div>
-                        <div class="col-6 col-md-3 d-flex flex-column justify-content-end">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold">Tara (kg) <span class="text-muted fw-normal">(opzionale)</span></label>
+                            <input type="number" id="edit-tare"
+                                   class="form-control text-center" step="0.001" min="0" placeholder="0"
+                                   value="0">
+                        </div>
+                        <div class="col-12 col-md-3 d-flex flex-column justify-content-end">
                             <button type="button" class="btn btn-info text-white fw-bold" onclick="editRecalc()">
                                 <i class="bi bi-arrow-repeat me-1"></i>Ricalcola Quantità
                             </button>
                         </div>
                     </div>
                     <small class="text-muted d-block mt-2">
-                        Formula: (Peso totale ÷ Peso campione) × Pezzi campione
+                        Formula: ((Peso totale − Tara) ÷ Peso campione) × Pezzi campione
                     </small>
                 </div>
             </div>
@@ -237,17 +243,24 @@ updateAreas();
 
 // Weight calculator auto-recalc
 function editRecalc() {
-    const sc = parseFloat(document.getElementById('edit-sample-count').value);
-    const sw = parseFloat(document.getElementById('edit-sample-weight').value);
-    const tw = parseFloat(document.getElementById('edit-total-weight').value);
+    const sc   = parseFloat(document.getElementById('edit-sample-count').value);
+    const sw   = parseFloat(document.getElementById('edit-sample-weight').value);
+    const tw   = parseFloat(document.getElementById('edit-total-weight').value);
+    const tare = parseFloat(document.getElementById('edit-tare').value) || 0;
 
     if (!sc || sc <= 0 || !sw || sw <= 0 || !tw || tw <= 0) return;
 
-    const qty = (tw / sw) * sc;
+    const netWeight = tw - tare;
+    if (netWeight <= 0) {
+        alert('Il peso netto (peso totale − tara) deve essere maggiore di zero.');
+        return;
+    }
+
+    const qty = (netWeight / sw) * sc;
     document.getElementById('edit-quantity').value = parseFloat(qty.toFixed(4));
 }
 
-['edit-sample-count', 'edit-sample-weight', 'edit-total-weight'].forEach(id => {
+['edit-sample-count', 'edit-sample-weight', 'edit-total-weight', 'edit-tare'].forEach(id => {
     document.getElementById(id).addEventListener('input', editRecalc);
 });
 </script>
