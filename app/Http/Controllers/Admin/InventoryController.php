@@ -19,7 +19,7 @@ class InventoryController extends Controller
         request()->session()->save();
 
         $query = $this->applyFilters(
-            InventoryRecord::with(['user', 'warehouse', 'area'])->orderByDesc('created_at'),
+            InventoryRecord::with(['user', 'warehouse', 'area'])->where('hidden', false)->orderByDesc('created_at'),
             $request
         );
 
@@ -38,7 +38,7 @@ class InventoryController extends Controller
 
         // Paginated article summary
         $articles = $this->applyFilters(
-                InventoryRecord::query()->orderBy('article_code'),
+                InventoryRecord::query()->where('hidden', false)->orderBy('article_code'),
                 $request
             )
             ->selectRaw('article_code, description, um, SUM(quantity) as total_qty, COUNT(*) as record_count')
@@ -49,7 +49,7 @@ class InventoryController extends Controller
         // Lot details for the articles on this page only
         $codes      = $articles->pluck('article_code');
         $lotDetails = $this->applyFilters(
-                InventoryRecord::with(['warehouse', 'area', 'user'])->orderBy('article_code')->orderByDesc('created_at'),
+                InventoryRecord::with(['warehouse', 'area', 'user'])->where('hidden', false)->orderBy('article_code')->orderByDesc('created_at'),
                 $request
             )
             ->whereIn('article_code', $codes)
@@ -132,6 +132,52 @@ class InventoryController extends Controller
         $record->delete();
         return redirect()->route('admin.inventory.index')
             ->with('success', 'Registrazione eliminata.');
+    }
+
+    public function hiddenIndex(Request $request)
+    {
+        request()->session()->save();
+
+        $records    = InventoryRecord::with(['user', 'warehouse', 'area'])
+            ->where('hidden', true)
+            ->orderByDesc('created_at')
+            ->paginate(30)
+            ->withQueryString();
+        $warehouses = Warehouse::orderBy('name')->get();
+        $areas      = Area::orderBy('name')->get();
+        $operators  = User::where('role', 'operator')->orderBy('name')->get();
+
+        return view('admin.inventory.hidden', compact('records', 'warehouses', 'areas', 'operators'));
+    }
+
+    public function hide(InventoryRecord $record)
+    {
+        $record->update(['hidden' => true]);
+
+        \App\Models\ActivityLog::create([
+            'user_id'      => \Auth::id(),
+            'action'       => 'admin_hide',
+            'subject_type' => 'InventoryRecord',
+            'subject_id'   => $record->id,
+            'description'  => "Nascosta registrazione #{$record->id} articolo {$record->article_code}",
+        ]);
+
+        return back()->with('success', 'Registrazione nascosta.');
+    }
+
+    public function unhide(InventoryRecord $record)
+    {
+        $record->update(['hidden' => false]);
+
+        \App\Models\ActivityLog::create([
+            'user_id'      => \Auth::id(),
+            'action'       => 'admin_unhide',
+            'subject_type' => 'InventoryRecord',
+            'subject_id'   => $record->id,
+            'description'  => "Ripristinata registrazione #{$record->id} articolo {$record->article_code}",
+        ]);
+
+        return back()->with('success', 'Registrazione ripristinata.');
     }
 
     public function export(Request $request)

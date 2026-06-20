@@ -16,6 +16,7 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
     public function query()
     {
         $query = InventoryRecord::with(['user', 'warehouse', 'area'])
+            ->where('hidden', false)
             ->orderBy('created_at');
 
         if (! empty($this->filters['date_from'])) {

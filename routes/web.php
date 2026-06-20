@@ -32,12 +32,15 @@ Route::middleware(['auth', 'admin_or_backoffice'])->prefix('admin')->name('admin
     Route::get('/dashboard',   [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/api/stats',   [DashboardController::class, 'stats'])->name('api.stats');
 
-    Route::get('/inventory',               [InventoryController::class, 'index'])->name('inventory.index');
-    Route::get('/inventory/grouped',       [InventoryController::class, 'grouped'])->name('inventory.grouped');
-    Route::get('/inventory/export',        [InventoryController::class, 'export'])->name('inventory.export');
-    Route::get('/inventory/{record}',      [InventoryController::class, 'show'])->name('inventory.show');
-    Route::get('/inventory/{record}/edit', [InventoryController::class, 'edit'])->name('inventory.edit');
-    Route::put('/inventory/{record}',      [InventoryController::class, 'update'])->name('inventory.update');
+    Route::get('/inventory',                        [InventoryController::class, 'index'])->name('inventory.index');
+    Route::get('/inventory/grouped',               [InventoryController::class, 'grouped'])->name('inventory.grouped');
+    Route::get('/inventory/export',                [InventoryController::class, 'export'])->name('inventory.export');
+    Route::get('/inventory/hidden',                [InventoryController::class, 'hiddenIndex'])->name('inventory.hidden');
+    Route::post('/inventory/{record}/hide',        [InventoryController::class, 'hide'])->name('inventory.hide');
+    Route::post('/inventory/{record}/unhide',      [InventoryController::class, 'unhide'])->name('inventory.unhide');
+    Route::get('/inventory/{record}',              [InventoryController::class, 'show'])->name('inventory.show');
+    Route::get('/inventory/{record}/edit',         [InventoryController::class, 'edit'])->name('inventory.edit');
+    Route::put('/inventory/{record}',              [InventoryController::class, 'update'])->name('inventory.update');
 });
 
 // Admin-only routes

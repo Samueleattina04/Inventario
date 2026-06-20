@@ -95,9 +95,15 @@
             </li>
             @endif
             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('admin.inventory.*') ? 'active' : '' }}"
+                <a class="nav-link {{ request()->routeIs('admin.inventory.index') || request()->routeIs('admin.inventory.show') || request()->routeIs('admin.inventory.edit') || request()->routeIs('admin.inventory.grouped') ? 'active' : '' }}"
                    href="{{ route('admin.inventory.index') }}">
                     <i class="bi bi-table me-2"></i>Inventario
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.inventory.hidden') ? 'active' : '' }}"
+                   href="{{ route('admin.inventory.hidden') }}">
+                    <i class="bi bi-eye-slash me-2"></i>Nascoste
                 </a>
             </li>
             @if(auth()->user()->isAdmin())

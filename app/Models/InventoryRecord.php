@@ -11,7 +11,7 @@ class InventoryRecord extends Model
         'article_code', 'description', 'um', 'lot', 'expiry_date',
         'quantity', 'db_source',
         'sample_count', 'sample_weight', 'total_weight',
-        'notes',
+        'notes', 'hidden',
     ];
 
     protected function casts(): array

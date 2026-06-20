@@ -14,18 +14,19 @@ class DashboardController extends Controller
     {
         request()->session()->save();
 
-        $todayCount = InventoryRecord::whereDate('created_at', today())->count();
-        $totalCount = InventoryRecord::count();
+        $todayCount = InventoryRecord::where('hidden', false)->whereDate('created_at', today())->count();
+        $totalCount = InventoryRecord::where('hidden', false)->count();
 
         $activeOperators = User::where('role', 'operator')
             ->where('active', true)
             ->count();
 
-        $byWarehouse = Warehouse::withCount(['inventoryRecords' => fn($q) => $q->whereDate('created_at', today())])
+        $byWarehouse = Warehouse::withCount(['inventoryRecords' => fn($q) => $q->where('hidden', false)->whereDate('created_at', today())])
             ->orderByDesc('inventory_records_count')
             ->get();
 
         $lastRecords = InventoryRecord::with(['user', 'warehouse', 'area'])
+            ->where('hidden', false)
             ->orderByDesc('created_at')
             ->limit(20)
             ->get();
@@ -43,10 +44,11 @@ class DashboardController extends Controller
     {
         request()->session()->save();
 
-        $todayCount = InventoryRecord::whereDate('created_at', today())->count();
-        $totalCount = InventoryRecord::count();
+        $todayCount = InventoryRecord::where('hidden', false)->whereDate('created_at', today())->count();
+        $totalCount = InventoryRecord::where('hidden', false)->count();
 
         $lastRecords = InventoryRecord::with(['user', 'warehouse', 'area'])
+            ->where('hidden', false)
             ->orderByDesc('created_at')
             ->limit(10)
             ->get()

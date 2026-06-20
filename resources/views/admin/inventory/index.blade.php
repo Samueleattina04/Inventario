@@ -163,6 +163,13 @@
                         <a href="{{ route('admin.inventory.edit', $record) }}" class="btn btn-sm btn-outline-warning" title="Modifica">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        <form method="POST" action="{{ route('admin.inventory.hide', $record) }}" class="d-inline"
+                              onsubmit="return confirm('Nascondere la registrazione #{{ $record->id }}?')">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Nascondi">
+                                <i class="bi bi-eye-slash"></i>
+                            </button>
+                        </form>
                         @if(auth()->user()->isAdmin())
                         <form method="POST" action="{{ route('admin.inventory.destroy', $record) }}" class="d-inline"
                               onsubmit="return confirm('Eliminare la registrazione #{{ $record->id }}?')">
