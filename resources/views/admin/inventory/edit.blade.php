@@ -27,6 +27,8 @@
     @csrf @method('PUT')
 
     <div class="row g-4">
+
+        {{-- Dati articolo --}}
         <div class="col-12 col-lg-6">
             <div class="card border-0 shadow-sm">
                 <div class="card-header fw-semibold">
@@ -52,7 +54,7 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-semibold">Quantità *</label>
-                            <input type="number" name="quantity" step="any" min="0"
+                            <input type="number" name="quantity" id="edit-quantity" step="any" min="0"
                                    class="form-control @error('quantity') is-invalid @enderror"
                                    value="{{ old('quantity', $record->quantity) }}" required>
                             @error('quantity') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -78,10 +80,47 @@
             </div>
         </div>
 
+        {{-- Magazzino / Area + Info --}}
         <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header fw-semibold">
+                    <i class="bi bi-building me-2"></i>Magazzino e Area
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Magazzino *</label>
+                        <select name="warehouse_id" id="edit-warehouse" class="form-select @error('warehouse_id') is-invalid @enderror" required>
+                            <option value="">— Seleziona magazzino —</option>
+                            @foreach($warehouses as $wh)
+                                <option value="{{ $wh->id }}"
+                                    {{ old('warehouse_id', $record->warehouse_id) == $wh->id ? 'selected' : '' }}>
+                                    {{ $wh->name }} ({{ $wh->code }})
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('warehouse_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Area</label>
+                        <select name="area_id" id="edit-area" class="form-select">
+                            <option value="">— Nessuna area —</option>
+                            @foreach($warehouses as $wh)
+                                @foreach($wh->activeAreas as $area)
+                                    <option value="{{ $area->id }}"
+                                        data-warehouse="{{ $wh->id }}"
+                                        {{ old('area_id', $record->area_id) == $area->id ? 'selected' : '' }}>
+                                        {{ $area->name }} ({{ $area->code }})
+                                    </option>
+                                @endforeach
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <div class="card border-0 shadow-sm">
                 <div class="card-header fw-semibold">
-                    <i class="bi bi-info-circle me-2"></i>Info Registrazione (sola lettura)
+                    <i class="bi bi-info-circle me-2"></i>Info Registrazione
                 </div>
                 <div class="card-body">
                     <table class="table table-sm mb-0">
@@ -94,25 +133,54 @@
                             <td>{{ $record->created_at->format('d/m/Y H:i:s') }}</td>
                         </tr>
                         <tr>
-                            <th class="text-muted">Magazzino</th>
-                            <td>{{ $record->warehouse?->name ?? '—' }}</td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted">Area</th>
-                            <td>{{ $record->area?->name ?? '—' }}</td>
-                        </tr>
-                        <tr>
                             <th class="text-muted">DB Provenienza</th>
                             <td>{{ $record->db_source_label }}</td>
                         </tr>
                     </table>
-                    <p class="text-muted small mt-3 mb-0">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Operatore, data, magazzino e area non sono modificabili dall'admin.
-                    </p>
                 </div>
             </div>
         </div>
+
+        {{-- Calcolatore peso --}}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="background:#f0f9ff; border: 1px solid #0dcaf0 !important;">
+                <div class="card-header fw-semibold" style="background:#e0f4fc;">
+                    <i class="bi bi-calculator me-2"></i>Calcolatore Peso → Quantità
+                    <small class="text-muted fw-normal ms-2">Modifica i valori per ricalcolare automaticamente la quantità</small>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold">Pezzi campione</label>
+                            <input type="number" name="sample_count" id="edit-sample-count"
+                                   class="form-control text-center" min="1" placeholder="N."
+                                   value="{{ old('sample_count', $record->sample_count) }}">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold">Peso campione (kg)</label>
+                            <input type="number" name="sample_weight" id="edit-sample-weight"
+                                   class="form-control text-center" step="0.001" min="0.001" placeholder="kg"
+                                   value="{{ old('sample_weight', $record->sample_weight) }}">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold">Peso totale (kg)</label>
+                            <input type="number" name="total_weight" id="edit-total-weight"
+                                   class="form-control text-center" step="0.001" min="0" placeholder="kg"
+                                   value="{{ old('total_weight', $record->total_weight) }}">
+                        </div>
+                        <div class="col-6 col-md-3 d-flex flex-column justify-content-end">
+                            <button type="button" class="btn btn-info text-white fw-bold" onclick="editRecalc()">
+                                <i class="bi bi-arrow-repeat me-1"></i>Ricalcola Quantità
+                            </button>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        Formula: (Peso totale ÷ Peso campione) × Pezzi campione
+                    </small>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <div class="d-flex gap-2 mt-4">
@@ -124,4 +192,63 @@
         </a>
     </div>
 </form>
+@endsection
+
+@section('scripts')
+<script>
+// Cascading warehouse → area dropdown
+const warehouseAreas = @json($warehouses->mapWithKeys(fn($wh) => [
+    $wh->id => $wh->activeAreas->map(fn($a) => ['id' => $a->id, 'name' => $a->name, 'code' => $a->code])->values()
+]));
+
+const warehouseSelect = document.getElementById('edit-warehouse');
+const areaSelect      = document.getElementById('edit-area');
+const currentAreaId   = {{ old('area_id', $record->area_id) ?? 'null' }};
+
+function updateAreas() {
+    const whId  = parseInt(warehouseSelect.value);
+    const areas = warehouseAreas[whId] || [];
+
+    areaSelect.innerHTML = '<option value="">— Nessuna area —</option>';
+    areas.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = a.name + ' (' + a.code + ')';
+        if (a.id === currentAreaId) opt.selected = true;
+        areaSelect.appendChild(opt);
+    });
+}
+
+warehouseSelect.addEventListener('change', function() {
+    // On manual change, don't pre-select any area
+    const whId  = parseInt(this.value);
+    const areas = warehouseAreas[whId] || [];
+    areaSelect.innerHTML = '<option value="">— Nessuna area —</option>';
+    areas.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = a.name + ' (' + a.code + ')';
+        areaSelect.appendChild(opt);
+    });
+});
+
+// Init on page load (keep current area selected)
+updateAreas();
+
+// Weight calculator auto-recalc
+function editRecalc() {
+    const sc = parseFloat(document.getElementById('edit-sample-count').value);
+    const sw = parseFloat(document.getElementById('edit-sample-weight').value);
+    const tw = parseFloat(document.getElementById('edit-total-weight').value);
+
+    if (!sc || sc <= 0 || !sw || sw <= 0 || !tw || tw <= 0) return;
+
+    const qty = (tw / sw) * sc;
+    document.getElementById('edit-quantity').value = parseFloat(qty.toFixed(4));
+}
+
+['edit-sample-count', 'edit-sample-weight', 'edit-total-weight'].forEach(id => {
+    document.getElementById(id).addEventListener('input', editRecalc);
+});
+</script>
 @endsection

@@ -75,27 +75,35 @@ class InventoryController extends Controller
     public function update(Request $request, InventoryRecord $record)
     {
         $request->validate([
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'area_id'      => 'nullable|exists:areas,id',
             'article_code' => 'required|string|max:255',
             'description'  => 'nullable|string|max:500',
             'um'           => 'nullable|string|max:50',
             'lot'          => 'nullable|string|max:255',
             'expiry_date'  => 'nullable|date',
             'quantity'     => 'required|numeric|min:0',
+            'sample_count' => 'nullable|integer|min:1',
+            'sample_weight'=> 'nullable|numeric|min:0',
+            'total_weight' => 'nullable|numeric|min:0',
             'notes'        => 'nullable|string|max:1000',
         ], [
+            'warehouse_id.required' => 'Il magazzino è obbligatorio.',
             'article_code.required' => 'Il codice articolo è obbligatorio.',
             'quantity.required'     => 'La quantità è obbligatoria.',
             'quantity.numeric'      => 'La quantità deve essere un numero.',
             'quantity.min'          => 'La quantità non può essere negativa.',
         ]);
 
-        $oldValues = $record->only(['article_code', 'description', 'um', 'lot', 'expiry_date', 'quantity', 'notes']);
+        $fields = ['warehouse_id', 'area_id', 'article_code', 'description', 'um',
+                   'lot', 'expiry_date', 'quantity', 'sample_count', 'sample_weight',
+                   'total_weight', 'notes'];
 
-        $record->update($request->only([
-            'article_code', 'description', 'um', 'lot', 'expiry_date', 'quantity', 'notes',
-        ]));
+        $oldValues = $record->only($fields);
 
-        $newValues = $record->fresh()->only(['article_code', 'description', 'um', 'lot', 'expiry_date', 'quantity', 'notes']);
+        $record->update($request->only($fields));
+
+        $newValues = $record->fresh()->only($fields);
 
         \App\Models\ActivityLog::create([
             'user_id'      => \Auth::id(),
