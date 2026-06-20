@@ -9,12 +9,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0"><i class="bi bi-table me-2 text-primary"></i>Registro Inventario</h4>
     <div class="d-flex gap-2">
-        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source','search'])) }}"
+        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source','search','um'])) }}"
            class="btn btn-outline-primary btn-sm">
             <i class="bi bi-layers me-1"></i>Per Articolo
         </a>
         @if(auth()->user()->isAdmin())
-        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source','search'])) }}"
+        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source','search','um'])) }}"
            class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
         </a>
@@ -80,6 +80,15 @@
                     <option value="">Tutti</option>
                     @foreach($operators as $u)
                         <option value="{{ $u->id }}" {{ request('user_id') == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold small">UM</label>
+                <select name="um" class="form-select">
+                    <option value="">Tutte</option>
+                    @foreach($ums as $um)
+                        <option value="{{ $um }}" {{ request('um') == $um ? 'selected' : '' }}>{{ $um }}</option>
                     @endforeach
                 </select>
             </div>

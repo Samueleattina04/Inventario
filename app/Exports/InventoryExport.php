@@ -34,6 +34,9 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
         if (! empty($this->filters['user_id'])) {
             $query->where('user_id', $this->filters['user_id']);
         }
+        if (! empty($this->filters['um'])) {
+            $query->where('um', $this->filters['um']);
+        }
         if (! empty($this->filters['search'])) {
             $search = $this->filters['search'];
             $query->where(function ($q) use ($search) {

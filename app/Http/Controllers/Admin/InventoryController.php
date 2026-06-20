@@ -28,8 +28,9 @@ class InventoryController extends Controller
         $warehouses = Warehouse::orderBy('name')->get();
         $areas      = Area::orderBy('name')->get();
         $operators  = User::where('role', 'operator')->orderBy('name')->get();
+        $ums        = InventoryRecord::whereNotNull('um')->where('um', '!=', '')->distinct()->orderBy('um')->pluck('um');
 
-        return view('admin.inventory.index', compact('records', 'warehouses', 'areas', 'operators'));
+        return view('admin.inventory.index', compact('records', 'warehouses', 'areas', 'operators', 'ums'));
     }
 
     public function grouped(Request $request)
@@ -185,7 +186,7 @@ class InventoryController extends Controller
     public function export(Request $request)
     {
         abort_unless(auth()->user()->isAdmin(), 403);
-        $filters  = $request->only(['date_from', 'date_to', 'warehouse_id', 'area_id', 'user_id', 'source', 'search']);
+        $filters  = $request->only(['date_from', 'date_to', 'warehouse_id', 'area_id', 'user_id', 'source', 'search', 'um']);
         $filename = 'inventario_' . now()->format('Ymd_His') . '.xlsx';
         return Excel::download(new InventoryExport($filters), $filename);
     }
@@ -206,6 +207,9 @@ class InventoryController extends Controller
         }
         if ($request->filled('user_id')) {
             $query->where('user_id', $request->user_id);
+        }
+        if ($request->filled('um')) {
+            $query->where('um', $request->um);
         }
         if ($request->filled('search')) {
             $search = $request->search;
