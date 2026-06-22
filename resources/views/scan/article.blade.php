@@ -157,13 +157,33 @@
                         </div>
                     </div>
 
+                    {{-- UM selezionabile --}}
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold small mb-1">
+                            <i class="bi bi-rulers me-1"></i>Unità di misura
+                        </label>
+                        <select name="um" id="um-select" class="form-select form-select-sm" style="max-width:200px">
+                            @php
+                                $currentUm = old('um', $um);
+                                $allUms = collect($umList);
+                                if ($currentUm && !$allUms->contains($currentUm)) {
+                                    $allUms->prepend($currentUm);
+                                }
+                            @endphp
+                            <option value="">— Nessuna UM —</option>
+                            @foreach($allUms as $u)
+                                <option value="{{ $u }}" {{ $currentUm === $u ? 'selected' : '' }}>{{ $u }}</option>
+                            @endforeach
+                            <option value="__custom__">+ Altra...</option>
+                        </select>
+                        <input type="text" id="um-custom" name="_um_custom" class="form-control form-control-sm mt-1 d-none"
+                               style="max-width:200px" placeholder="Scrivi unità di misura...">
+                    </div>
+
                     {{-- Quantity --}}
                     <div class="mb-3">
                         <label for="quantity" class="form-label fw-bold fs-5">
                             <i class="bi bi-123 me-1"></i>Quantità *
-                            @if($um)
-                                <span class="badge bg-secondary ms-1">{{ $um }}</span>
-                            @endif
                         </label>
                         <input
                             type="number"
@@ -250,5 +270,32 @@ function toggleCalc() {
     body.style.display    = open ? '' : 'none';
     chevron.className     = open ? 'bi bi-chevron-down' : 'bi bi-chevron-right';
 }
+
+// UM select: mostra campo libero su "Altra..."
+const umSelect = document.getElementById('um-select');
+const umCustom = document.getElementById('um-custom');
+
+umSelect.addEventListener('change', function () {
+    if (this.value === '__custom__') {
+        umCustom.classList.remove('d-none');
+        umCustom.required = true;
+        umCustom.focus();
+    } else {
+        umCustom.classList.add('d-none');
+        umCustom.required = false;
+        umCustom.value = '';
+    }
+});
+
+// Prima del submit: se "Altra..." è selezionato, sposta il valore nel select
+document.querySelector('form').addEventListener('submit', function () {
+    if (umSelect.value === '__custom__' && umCustom.value.trim()) {
+        const opt = document.createElement('option');
+        opt.value = umCustom.value.trim();
+        opt.selected = true;
+        umSelect.appendChild(opt);
+        umCustom.name = '';
+    }
+});
 </script>
 @endsection

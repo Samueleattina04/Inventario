@@ -95,17 +95,25 @@ class ScanController extends Controller
         $areaId = session('area_id');
         $area   = $areaId ? Area::findOrFail($areaId) : null;
 
+        $umList = \App\Models\InventoryRecord::whereNotNull('um')
+            ->where('um', '!=', '')
+            ->distinct()
+            ->orderBy('um')
+            ->pluck('um')
+            ->toArray();
+
         $data = [
-            'article_code' => $request->query('article_code', ''),
-            'description'  => $request->query('description', ''),
-            'um'           => $request->query('um', ''),
-            'lot'          => $request->query('lot', ''),
-            'expiry_date'  => $request->query('expiry_date', ''),
-            'db_source'    => $request->query('db_source', 'not_found'),
-            'lot_match'    => filter_var($request->query('lot_match', 'false'), FILTER_VALIDATE_BOOLEAN),
-            'area'         => $area,
+            'article_code'  => $request->query('article_code', ''),
+            'description'   => $request->query('description', ''),
+            'um'            => $request->query('um', ''),
+            'lot'           => $request->query('lot', ''),
+            'expiry_date'   => $request->query('expiry_date', ''),
+            'db_source'     => $request->query('db_source', 'not_found'),
+            'lot_match'     => filter_var($request->query('lot_match', 'false'), FILTER_VALIDATE_BOOLEAN),
+            'area'          => $area,
             'warehouseName' => session('warehouse_name'),
             'areaName'      => session('area_name'),
+            'umList'        => $umList,
         ];
 
         return view('scan.article', $data);

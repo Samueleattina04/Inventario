@@ -161,22 +161,7 @@
                             <span class="text-muted">—</span>
                         @endif
                     </td>
-                    <td class="text-end fw-bold" style="min-width:110px">
-                        <span class="qty-display" data-id="{{ $record->id }}" title="Clicca per modificare" style="cursor:pointer; border-bottom:1px dashed #aaa">
-                            {{ number_format($record->quantity, 2, ',', '.') }}
-                        </span>
-                        <span class="qty-edit d-none" data-id="{{ $record->id }}">
-                            <input type="text" inputmode="decimal"
-                                   class="form-control form-control-sm d-inline text-end fw-bold p-1"
-                                   style="width:90px"
-                                   value="{{ rtrim(rtrim(number_format($record->quantity, 4, '.', ''), '0'), '.') }}">
-                            <button class="btn btn-sm btn-success p-1 ms-1 qty-save" data-id="{{ $record->id }}"
-                                    data-url="{{ route('admin.inventory.update-quantity', $record) }}"
-                                    title="Salva"><i class="bi bi-check-lg"></i></button>
-                            <button class="btn btn-sm btn-outline-secondary p-1 qty-cancel" data-id="{{ $record->id }}"
-                                    title="Annulla"><i class="bi bi-x-lg"></i></button>
-                        </span>
-                    </td>
+                    <td class="text-end fw-bold">{{ number_format($record->quantity, 2, ',', '.') }}</td>
                     <td>
                         @if(str_starts_with($record->db_source ?? '', 'sqlsrv'))
                             <span class="badge bg-primary" title="SQL Server">SQL</span>
@@ -227,73 +212,3 @@
 </div>
 @endsection
 
-@section('scripts')
-<script>
-const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-
-document.querySelectorAll('.qty-display').forEach(el => {
-    el.addEventListener('click', function () {
-        const id = this.dataset.id;
-        this.classList.add('d-none');
-        document.querySelector(`.qty-edit[data-id="${id}"]`).classList.remove('d-none');
-        document.querySelector(`.qty-edit[data-id="${id}"] input`).select();
-    });
-});
-
-document.querySelectorAll('.qty-cancel').forEach(btn => {
-    btn.addEventListener('click', function () {
-        const id = this.dataset.id;
-        document.querySelector(`.qty-edit[data-id="${id}"]`).classList.add('d-none');
-        document.querySelector(`.qty-display[data-id="${id}"]`).classList.remove('d-none');
-    });
-});
-
-document.querySelectorAll('.qty-save').forEach(btn => {
-    btn.addEventListener('click', async function () {
-        const id  = this.dataset.id;
-        const url = this.dataset.url;
-        const inp = document.querySelector(`.qty-edit[data-id="${id}"] input`);
-        const val = inp.value.replace(',', '.').trim();
-
-        if (!val || isNaN(parseFloat(val))) {
-            inp.classList.add('is-invalid');
-            return;
-        }
-        inp.classList.remove('is-invalid');
-
-        try {
-            const res  = await fetch(url, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-                body: JSON.stringify({ quantity: val }),
-            });
-            const data = await res.json();
-            if (data.ok) {
-                const disp = document.querySelector(`.qty-display[data-id="${id}"]`);
-                disp.textContent = data.quantity;
-                document.querySelector(`.qty-edit[data-id="${id}"]`).classList.add('d-none');
-                disp.classList.remove('d-none');
-                disp.style.color = '#198754';
-                setTimeout(() => disp.style.color = '', 1500);
-            }
-        } catch (e) {
-            alert('Errore durante il salvataggio.');
-        }
-    });
-});
-
-// Save on Enter key
-document.querySelectorAll('.qty-edit input').forEach(inp => {
-    inp.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') {
-            const id = this.closest('.qty-edit').dataset.id;
-            document.querySelector(`.qty-save[data-id="${id}"]`).click();
-        }
-        if (e.key === 'Escape') {
-            const id = this.closest('.qty-edit').dataset.id;
-            document.querySelector(`.qty-cancel[data-id="${id}"]`).click();
-        }
-    });
-});
-</script>
-@endsection

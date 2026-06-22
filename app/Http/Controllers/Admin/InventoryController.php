@@ -152,26 +152,6 @@ class InventoryController extends Controller
             ->with('success', 'Registrazione eliminata.');
     }
 
-    public function updateQuantity(Request $request, InventoryRecord $record)
-    {
-        $request->validate(['quantity' => 'required|numeric|min:0']);
-
-        $oldQty = $record->quantity;
-        $record->update(['quantity' => $request->quantity]);
-
-        \App\Models\ActivityLog::create([
-            'user_id'      => \Auth::id(),
-            'action'       => 'admin_edit',
-            'subject_type' => 'InventoryRecord',
-            'subject_id'   => $record->id,
-            'old_values'   => ['quantity' => $oldQty],
-            'new_values'   => ['quantity' => $request->quantity],
-            'description'  => "Correzione quantità registrazione #{$record->id} articolo {$record->article_code}",
-        ]);
-
-        return response()->json(['ok' => true, 'quantity' => number_format($record->fresh()->quantity, 2, ',', '.')]);
-    }
-
     public function hiddenIndex(Request $request)
     {
         request()->session()->save();
