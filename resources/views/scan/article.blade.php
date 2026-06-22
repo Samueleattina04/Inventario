@@ -123,8 +123,8 @@
                             <div class="row g-2 mb-2">
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold">Pezzi campione</label>
-                                    <input type="number" id="sample_count_calc" name="sample_count"
-                                        class="form-control text-center" min="1" placeholder="N."
+                                    <input type="text" inputmode="numeric" id="sample_count_calc" name="sample_count"
+                                        class="form-control text-center" placeholder="N."
                                         value="{{ old('sample_count') }}">
                                 </div>
                                 <div class="col-6">
@@ -215,8 +215,12 @@
 
 @section('scripts')
 <script>
+function parseCount(val) {
+    return parseInt(val.replace(/\./g, '').replace(/,/g, '').trim(), 10);
+}
+
 function calculateQty() {
-    const sc   = parseFloat(document.getElementById('sample_count_calc').value);
+    const sc   = parseCount(document.getElementById('sample_count_calc').value);
     const sw   = parseFloat(document.getElementById('sample_weight_calc').value);
     const tw   = parseFloat(document.getElementById('total_weight_calc').value);
     const tare = parseFloat(document.getElementById('tare_calc').value) || 0;

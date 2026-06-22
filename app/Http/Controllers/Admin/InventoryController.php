@@ -76,6 +76,10 @@ class InventoryController extends Controller
 
     public function update(Request $request, InventoryRecord $record)
     {
+        if ($request->filled('sample_count')) {
+            $request->merge(['sample_count' => (int) str_replace(['.', ',', ' '], '', $request->sample_count)]);
+        }
+
         $request->validate([
             'warehouse_id' => 'required|exists:warehouses,id',
             'area_id'      => 'nullable|exists:areas,id',
@@ -220,6 +224,13 @@ class InventoryController extends Controller
         }
         if ($request->filled('um')) {
             $query->where('um', $request->um);
+        }
+        if ($request->filled('has_calc')) {
+            if ($request->has_calc === '1') {
+                $query->whereNotNull('sample_count');
+            } else {
+                $query->whereNull('sample_count');
+            }
         }
         if ($request->filled('search')) {
             $search = $request->search;

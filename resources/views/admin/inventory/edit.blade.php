@@ -152,8 +152,8 @@
                     <div class="row g-3">
                         <div class="col-6 col-md-3">
                             <label class="form-label fw-semibold">Pezzi campione</label>
-                            <input type="number" name="sample_count" id="edit-sample-count"
-                                   class="form-control text-center" min="1" placeholder="N."
+                            <input type="text" inputmode="numeric" name="sample_count" id="edit-sample-count"
+                                   class="form-control text-center" placeholder="N."
                                    value="{{ old('sample_count', $record->sample_count) }}">
                         </div>
                         <div class="col-6 col-md-3">
@@ -242,8 +242,12 @@ warehouseSelect.addEventListener('change', function() {
 updateAreas();
 
 // Weight calculator auto-recalc
+function parseCount(val) {
+    return parseInt(val.replace(/\./g, '').replace(/,/g, '').trim(), 10);
+}
+
 function editRecalc() {
-    const sc   = parseFloat(document.getElementById('edit-sample-count').value);
+    const sc   = parseCount(document.getElementById('edit-sample-count').value);
     const sw   = parseFloat(document.getElementById('edit-sample-weight').value);
     const tw   = parseFloat(document.getElementById('edit-total-weight').value);
     const tare = parseFloat(document.getElementById('edit-tare').value) || 0;

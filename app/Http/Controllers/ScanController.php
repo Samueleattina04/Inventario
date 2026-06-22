@@ -113,6 +113,10 @@ class ScanController extends Controller
 
     public function saveRecord(Request $request)
     {
+        if ($request->filled('sample_count')) {
+            $request->merge(['sample_count' => (int) str_replace(['.', ',', ' '], '', $request->sample_count)]);
+        }
+
         $request->validate([
             'article_code' => 'required|string|max:255',
             'description'  => 'nullable|string|max:500',

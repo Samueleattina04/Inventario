@@ -92,6 +92,14 @@
                     @endforeach
                 </select>
             </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold small">Calcolatore peso</label>
+                <select name="has_calc" class="form-select">
+                    <option value="">Tutti</option>
+                    <option value="1" {{ request('has_calc') === '1' ? 'selected' : '' }}>Con calcolatore</option>
+                    <option value="0" {{ request('has_calc') === '0' ? 'selected' : '' }}>Senza calcolatore</option>
+                </select>
+            </div>
             <div class="col-6 col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-funnel me-1"></i>Filtra</button>
                 <a href="{{ route('admin.inventory.index') }}" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
