@@ -159,13 +159,13 @@
                         <div class="col-6 col-md-3">
                             <label class="form-label fw-semibold">Peso campione (kg)</label>
                             <input type="text" inputmode="decimal" name="sample_weight" id="edit-sample-weight"
-                                   class="form-control text-center" placeholder="es. 0.250 o 1.500"
+                                   class="form-control text-center" placeholder="es. 0,250 o 1,5"
                                    value="{{ old('sample_weight', $record->sample_weight) }}">
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label fw-semibold">Peso totale (kg)</label>
                             <input type="text" inputmode="decimal" name="total_weight" id="edit-total-weight"
-                                   class="form-control text-center" placeholder="es. 1.500"
+                                   class="form-control text-center" placeholder="es. 1500 o 1500,5"
                                    value="{{ old('total_weight', $record->total_weight) }}">
                         </div>
                         <div class="col-6 col-md-3">

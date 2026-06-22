@@ -130,13 +130,13 @@
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold">Peso campione (kg)</label>
                                     <input type="text" inputmode="decimal" id="sample_weight_calc" name="sample_weight"
-                                        class="form-control text-center" placeholder="es. 0.250 o 1.500"
+                                        class="form-control text-center" placeholder="es. 0,250 o 1,5"
                                         value="{{ old('sample_weight') }}">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold">Peso totale (kg)</label>
                                     <input type="text" inputmode="decimal" id="total_weight_calc" name="total_weight"
-                                        class="form-control text-center" placeholder="es. 1.500"
+                                        class="form-control text-center" placeholder="es. 1500 o 1500,5"
                                         value="{{ old('total_weight') }}">
                                 </div>
                                 <div class="col-6">
@@ -152,7 +152,8 @@
                                 <i class="bi bi-calculator me-2"></i>Calcola Quantità
                             </button>
                             <small class="text-muted d-block text-center mt-1">
-                                Formula: ((Peso totale − Tara) ÷ Peso campione) × Pezzi campione
+                                Formula: ((Peso totale − Tara) ÷ Peso campione) × Pezzi campione<br>
+                                <span class="text-warning">Usa la <strong>virgola</strong> per i decimali (es. 1,5 kg)</span>
                             </small>
                         </div>
                     </div>
