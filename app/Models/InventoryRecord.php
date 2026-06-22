@@ -10,7 +10,7 @@ class InventoryRecord extends Model
         'user_id', 'warehouse_id', 'area_id',
         'article_code', 'description', 'um', 'lot', 'expiry_date',
         'quantity', 'db_source',
-        'sample_count', 'sample_weight', 'total_weight',
+        'sample_count', 'sample_weight', 'total_weight', 'tare',
         'notes', 'hidden',
     ];
 
@@ -20,6 +20,7 @@ class InventoryRecord extends Model
             'quantity'      => 'decimal:4',
             'sample_weight' => 'decimal:4',
             'total_weight'  => 'decimal:4',
+            'tare'          => 'decimal:4',
             'expiry_date'   => 'date',
         ];
     }

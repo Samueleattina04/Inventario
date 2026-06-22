@@ -128,6 +128,7 @@ class ScanController extends Controller
             'sample_count' => 'nullable|integer|min:1',
             'sample_weight'=> 'nullable|numeric|min:0',
             'total_weight' => 'nullable|numeric|min:0',
+            'tare'         => 'nullable|numeric|min:0',
             'notes'        => 'nullable|string|max:1000',
         ], [
             'article_code.required' => 'Il codice articolo è obbligatorio.',
@@ -154,6 +155,7 @@ class ScanController extends Controller
             'sample_count' => $request->sample_count,
             'sample_weight'=> $request->sample_weight,
             'total_weight' => $request->total_weight,
+            'tare'         => $request->tare ?: null,
             'notes'        => $request->notes,
         ]);
 

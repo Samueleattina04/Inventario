@@ -170,9 +170,9 @@
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label fw-semibold">Tara (kg) <span class="text-muted fw-normal">(opzionale)</span></label>
-                            <input type="number" id="edit-tare"
+                            <input type="number" name="tare" id="edit-tare"
                                    class="form-control text-center" step="0.001" min="0" placeholder="0"
-                                   value="0">
+                                   value="{{ old('tare', $record->tare ?? 0) }}">
                         </div>
                         <div class="col-12 col-md-3 d-flex flex-column justify-content-end">
                             <button type="button" class="btn btn-info text-white fw-bold" onclick="editRecalc()">

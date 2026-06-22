@@ -75,6 +75,7 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
             'Pezzi campione',
             'Peso campione (kg)',
             'Peso totale (kg)',
+            'Tara (kg)',
             'Note',
         ];
     }
@@ -96,6 +97,7 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
             $record->sample_count,
             $record->sample_weight,
             $record->total_weight,
+            $record->tare,
             $record->notes ?? '',
         ];
     }

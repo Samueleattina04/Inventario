@@ -92,6 +92,7 @@ class InventoryController extends Controller
             'sample_count' => 'nullable|integer|min:1',
             'sample_weight'=> 'nullable|numeric|min:0',
             'total_weight' => 'nullable|numeric|min:0',
+            'tare'         => 'nullable|numeric|min:0',
             'notes'        => 'nullable|string|max:1000',
         ], [
             'warehouse_id.required' => 'Il magazzino è obbligatorio.',
@@ -103,7 +104,7 @@ class InventoryController extends Controller
 
         $fields = ['warehouse_id', 'area_id', 'article_code', 'description', 'um',
                    'lot', 'expiry_date', 'quantity', 'sample_count', 'sample_weight',
-                   'total_weight', 'notes'];
+                   'total_weight', 'tare', 'notes'];
 
         $record->load('warehouse', 'area');
         $oldValues = $record->only($fields);

@@ -143,9 +143,9 @@
                                     <label class="form-label small fw-semibold">
                                         Tara (kg) <span class="text-muted fw-normal">(opzionale)</span>
                                     </label>
-                                    <input type="number" id="tare_calc"
+                                    <input type="number" id="tare_calc" name="tare"
                                         class="form-control text-center" step="0.001" min="0" placeholder="0"
-                                        value="{{ old('tare_calc', 0) }}">
+                                        value="{{ old('tare', 0) }}">
                                 </div>
                             </div>
                             <button type="button" class="btn btn-info w-100 text-white fw-bold" onclick="calculateQty()">
