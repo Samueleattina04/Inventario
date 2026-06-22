@@ -129,22 +129,22 @@
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold">Peso campione (kg)</label>
-                                    <input type="text" inputmode="decimal" id="sample_weight_calc" name="sample_weight"
-                                        class="form-control text-center" placeholder="es. 0,250 o 1,5"
+                                    <input type="number" id="sample_weight_calc" name="sample_weight"
+                                        class="form-control text-center" step="0.001" min="0.001" placeholder="kg"
                                         value="{{ old('sample_weight') }}">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold">Peso totale (kg)</label>
-                                    <input type="text" inputmode="decimal" id="total_weight_calc" name="total_weight"
-                                        class="form-control text-center" placeholder="es. 1500 o 1500,5"
+                                    <input type="number" id="total_weight_calc" name="total_weight"
+                                        class="form-control text-center" step="0.001" min="0" placeholder="kg"
                                         value="{{ old('total_weight') }}">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold">
                                         Tara (kg) <span class="text-muted fw-normal">(opzionale)</span>
                                     </label>
-                                    <input type="text" inputmode="decimal" id="tare_calc"
-                                        class="form-control text-center" placeholder="0"
+                                    <input type="number" id="tare_calc"
+                                        class="form-control text-center" step="0.001" min="0" placeholder="0"
                                         value="{{ old('tare_calc', 0) }}">
                                 </div>
                             </div>
@@ -152,8 +152,7 @@
                                 <i class="bi bi-calculator me-2"></i>Calcola Quantità
                             </button>
                             <small class="text-muted d-block text-center mt-1">
-                                Formula: ((Peso totale − Tara) ÷ Peso campione) × Pezzi campione<br>
-                                <span class="text-warning">Usa la <strong>virgola</strong> per i decimali (es. 1,5 kg)</span>
+                                Formula: ((Peso totale − Tara) ÷ Peso campione) × Pezzi campione
                             </small>
                         </div>
                     </div>
@@ -167,8 +166,7 @@
                             @endif
                         </label>
                         <input
-                            type="text"
-                            inputmode="decimal"
+                            type="number"
                             id="quantity"
                             name="quantity"
                             class="form-control qty-input @error('quantity') is-invalid @enderror"
@@ -221,37 +219,11 @@ function parseCount(val) {
     return parseInt(val.replace(/\./g, '').replace(/,/g, '').trim(), 10);
 }
 
-function parseItalianNumber(val) {
-    val = String(val).trim();
-    if (!val) return NaN;
-    // Both . and , → dot=thousands, comma=decimal
-    if (val.includes('.') && val.includes(',')) {
-        return parseFloat(val.replace(/\./g, '').replace(',', '.'));
-    }
-    // Only comma → decimal
-    if (val.includes(',')) {
-        return parseFloat(val.replace(',', '.'));
-    }
-    // Only dot(s)
-    if (val.includes('.')) {
-        const parts = val.split('.');
-        if (parts.length > 2) return parseFloat(parts.join('')); // 1.500.000 → 1500000
-        const intPart  = parts[0];
-        const fracPart = parts[1] || '';
-        // 0.250 → decimal; 1.500 → thousands
-        if (intPart !== '0' && fracPart.length === 3) {
-            return parseFloat(intPart + fracPart);
-        }
-        return parseFloat(val);
-    }
-    return parseFloat(val);
-}
-
 function calculateQty() {
     const sc   = parseCount(document.getElementById('sample_count_calc').value);
-    const sw   = parseItalianNumber(document.getElementById('sample_weight_calc').value);
-    const tw   = parseItalianNumber(document.getElementById('total_weight_calc').value);
-    const tare = parseItalianNumber(document.getElementById('tare_calc').value) || 0;
+    const sw   = parseFloat(document.getElementById('sample_weight_calc').value);
+    const tw   = parseFloat(document.getElementById('total_weight_calc').value);
+    const tare = parseFloat(document.getElementById('tare_calc').value) || 0;
 
     if (!sc || sc <= 0 || !sw || sw <= 0 || isNaN(tw) || tw <= 0) {
         alert('Inserisci pezzi campione, peso campione e peso totale per il calcolo.');
