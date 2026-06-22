@@ -138,6 +138,7 @@
                                         'sample_count'   => 'Pezzi campione',
                                         'sample_weight'  => 'Peso campione (kg)',
                                         'total_weight'   => 'Peso totale (kg)',
+                                        'db_source'      => 'DB Provenienza',
                                     ];
                                     $oldVals = $log->old_values ?? [];
                                     $newVals = $log->new_values ?? [];

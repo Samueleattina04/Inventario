@@ -94,6 +94,7 @@ class InventoryController extends Controller
             'total_weight' => 'nullable|numeric|min:0',
             'tare'         => 'nullable|numeric|min:0',
             'notes'        => 'nullable|string|max:1000',
+            'db_source'    => 'nullable|in:not_found,sqlsrv,access',
         ], [
             'warehouse_id.required' => 'Il magazzino è obbligatorio.',
             'article_code.required' => 'Il codice articolo è obbligatorio.',
@@ -105,6 +106,11 @@ class InventoryController extends Controller
         $fields = ['warehouse_id', 'area_id', 'article_code', 'description', 'um',
                    'lot', 'expiry_date', 'quantity', 'sample_count', 'sample_weight',
                    'total_weight', 'tare', 'notes'];
+
+        // Allow changing db_source only when record was not_found
+        if ($record->db_source === 'not_found' && $request->filled('db_source')) {
+            $fields[] = 'db_source';
+        }
 
         $record->load('warehouse', 'area');
         $oldValues = $record->only($fields);

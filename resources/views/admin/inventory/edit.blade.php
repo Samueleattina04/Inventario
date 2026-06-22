@@ -134,7 +134,25 @@
                         </tr>
                         <tr>
                             <th class="text-muted">DB Provenienza</th>
-                            <td>{{ $record->db_source_label }}</td>
+                            <td>
+                                @if($record->db_source === 'not_found')
+                                    <span class="badge bg-danger me-2">Non trovato</span>
+                                    <small class="text-muted d-block mt-1">Puoi assegnare manualmente un DB:</small>
+                                    <select name="db_source" class="form-select form-select-sm mt-1">
+                                        <option value="not_found" {{ old('db_source', $record->db_source) === 'not_found' ? 'selected' : '' }}>
+                                            — Non assegnato —
+                                        </option>
+                                        <option value="sqlsrv" {{ old('db_source', $record->db_source) === 'sqlsrv' ? 'selected' : '' }}>
+                                            SQL Server
+                                        </option>
+                                        <option value="access" {{ old('db_source', $record->db_source) === 'access' ? 'selected' : '' }}>
+                                            Access
+                                        </option>
+                                    </select>
+                                @else
+                                    {{ $record->db_source_label }}
+                                @endif
+                            </td>
                         </tr>
                     </table>
                 </div>
