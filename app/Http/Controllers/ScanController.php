@@ -119,6 +119,16 @@ class ScanController extends Controller
         return view('scan.article', $data);
     }
 
+    public function history()
+    {
+        $records = \App\Models\InventoryRecord::with(['warehouse', 'area'])
+            ->where('user_id', Auth::id())
+            ->orderByDesc('created_at')
+            ->paginate(30);
+
+        return view('scan.history', compact('records'));
+    }
+
     public function saveRecord(Request $request)
     {
         if ($request->filled('sample_count')) {

@@ -22,6 +22,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/location', [ScanController::class, 'selectLocation']);
     Route::get('/scan',      [ScanController::class, 'scanner'])->name('scan');
     Route::get('/article',   [ScanController::class, 'showArticle'])->name('article');
+    Route::get('/history',   [ScanController::class, 'history'])->name('history');
     Route::post('/inventory', [ScanController::class, 'saveRecord'])->name('inventory.save');
     Route::post('/api/article-lookup',   [ScanController::class, 'lookupArticle'])->name('api.article-lookup');
     Route::get('/api/articles/search',   [ScanController::class, 'searchArticles'])->name('api.articles.search');

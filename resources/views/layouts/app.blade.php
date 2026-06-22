@@ -35,10 +35,13 @@
                     </span>
                 @endif
                 <span class="text-white-50 small d-none d-sm-inline">{{ auth()->user()->name }}</span>
+                <a href="{{ route('history') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-clock-history"></i><span class="d-none d-sm-inline ms-1">Storico</span>
+                </a>
                 <form method="POST" action="{{ route('logout') }}" class="m-0">
                     @csrf
                     <button type="submit" class="btn btn-outline-light btn-sm">
-                        <i class="bi bi-box-arrow-right"></i> Esci
+                        <i class="bi bi-box-arrow-right"></i><span class="d-none d-sm-inline ms-1">Esci</span>
                     </button>
                 </form>
             @endauth
