@@ -72,6 +72,10 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
             'Scadenza',
             'Quantità',
             'DB Provenienza',
+            'Pezzi campione',
+            'Peso campione (kg)',
+            'Peso totale (kg)',
+            'Note',
         ];
     }
 
@@ -89,6 +93,10 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
             $record->expiry_date?->format('d/m/Y') ?? '',
             $record->quantity,
             $record->db_source_label,
+            $record->sample_count,
+            $record->sample_weight,
+            $record->total_weight,
+            $record->notes ?? '',
         ];
     }
 
