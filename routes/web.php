@@ -38,6 +38,7 @@ Route::middleware(['auth', 'admin_or_backoffice'])->prefix('admin')->name('admin
     Route::get('/inventory/hidden',                [InventoryController::class, 'hiddenIndex'])->name('inventory.hidden');
     Route::post('/inventory/{record}/hide',        [InventoryController::class, 'hide'])->name('inventory.hide');
     Route::post('/inventory/{record}/unhide',      [InventoryController::class, 'unhide'])->name('inventory.unhide');
+    Route::patch('/inventory/{record}/quantity',   [InventoryController::class, 'updateQuantity'])->name('inventory.update-quantity');
     Route::get('/inventory/{record}',              [InventoryController::class, 'show'])->name('inventory.show');
     Route::get('/inventory/{record}/edit',         [InventoryController::class, 'edit'])->name('inventory.edit');
     Route::put('/inventory/{record}',              [InventoryController::class, 'update'])->name('inventory.update');
