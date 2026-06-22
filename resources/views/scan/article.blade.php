@@ -154,6 +154,12 @@
                             <small class="text-muted d-block text-center mt-1">
                                 Formula: ((Peso totale − Tara) ÷ Peso campione) × Pezzi campione
                             </small>
+                            <div class="alert alert-warning py-2 px-3 mt-2 mb-0 text-start" style="font-size:0.8rem">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <strong>Come inserire i numeri:</strong>
+                                usa <strong>punto o virgola solo per i decimali</strong> (es. <code>1.5</code> oppure <code>1,5</code> = un chilo e mezzo).
+                                Per numeri grandi scrivi tutto attaccato senza separatori (es. <code>10000</code> = diecimila pezzi, non <code>10.000</code>).
+                            </div>
                         </div>
                     </div>
 
