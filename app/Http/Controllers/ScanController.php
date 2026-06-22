@@ -111,11 +111,42 @@ class ScanController extends Controller
         return view('scan.article', $data);
     }
 
-    public function saveRecord(Request $request)
+    private function normalizeNumericFields(Request $request): void
     {
         if ($request->filled('sample_count')) {
             $request->merge(['sample_count' => (int) str_replace(['.', ',', ' '], '', $request->sample_count)]);
         }
+        foreach (['sample_weight', 'total_weight', 'quantity'] as $field) {
+            if ($request->filled($field)) {
+                $request->merge([$field => self::parseItalianDecimal((string) $request->$field)]);
+            }
+        }
+    }
+
+    private static function parseItalianDecimal(string $val): string
+    {
+        $val = trim($val);
+        if (str_contains($val, '.') && str_contains($val, ',')) {
+            return str_replace(['.', ','], ['', '.'], $val);
+        }
+        if (str_contains($val, ',')) {
+            return str_replace(',', '.', $val);
+        }
+        if (str_contains($val, '.')) {
+            $parts    = explode('.', $val);
+            if (count($parts) > 2) return implode('', $parts);
+            $intPart  = $parts[0];
+            $fracPart = $parts[1] ?? '';
+            if ($intPart !== '0' && strlen($fracPart) === 3) {
+                return $intPart . $fracPart;
+            }
+        }
+        return $val;
+    }
+
+    public function saveRecord(Request $request)
+    {
+        $this->normalizeNumericFields($request);
 
         $request->validate([
             'article_code' => 'required|string|max:255',

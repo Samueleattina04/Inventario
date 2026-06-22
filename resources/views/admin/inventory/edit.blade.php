@@ -158,20 +158,20 @@
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label fw-semibold">Peso campione (kg)</label>
-                            <input type="number" name="sample_weight" id="edit-sample-weight"
-                                   class="form-control text-center" step="0.001" min="0.001" placeholder="kg"
+                            <input type="text" inputmode="decimal" name="sample_weight" id="edit-sample-weight"
+                                   class="form-control text-center" placeholder="es. 0.250 o 1.500"
                                    value="{{ old('sample_weight', $record->sample_weight) }}">
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label fw-semibold">Peso totale (kg)</label>
-                            <input type="number" name="total_weight" id="edit-total-weight"
-                                   class="form-control text-center" step="0.001" min="0" placeholder="kg"
+                            <input type="text" inputmode="decimal" name="total_weight" id="edit-total-weight"
+                                   class="form-control text-center" placeholder="es. 1.500"
                                    value="{{ old('total_weight', $record->total_weight) }}">
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label fw-semibold">Tara (kg) <span class="text-muted fw-normal">(opzionale)</span></label>
-                            <input type="number" id="edit-tare"
-                                   class="form-control text-center" step="0.001" min="0" placeholder="0"
+                            <input type="text" inputmode="decimal" id="edit-tare"
+                                   class="form-control text-center" placeholder="0"
                                    value="0">
                         </div>
                         <div class="col-12 col-md-3 d-flex flex-column justify-content-end">
@@ -241,16 +241,38 @@ warehouseSelect.addEventListener('change', function() {
 // Init on page load (keep current area selected)
 updateAreas();
 
-// Weight calculator auto-recalc
 function parseCount(val) {
     return parseInt(val.replace(/\./g, '').replace(/,/g, '').trim(), 10);
 }
 
+function parseItalianNumber(val) {
+    val = String(val).trim();
+    if (!val) return NaN;
+    if (val.includes('.') && val.includes(',')) {
+        return parseFloat(val.replace(/\./g, '').replace(',', '.'));
+    }
+    if (val.includes(',')) {
+        return parseFloat(val.replace(',', '.'));
+    }
+    if (val.includes('.')) {
+        const parts = val.split('.');
+        if (parts.length > 2) return parseFloat(parts.join(''));
+        const intPart  = parts[0];
+        const fracPart = parts[1] || '';
+        if (intPart !== '0' && fracPart.length === 3) {
+            return parseFloat(intPart + fracPart);
+        }
+        return parseFloat(val);
+    }
+    return parseFloat(val);
+}
+
+// Weight calculator auto-recalc
 function editRecalc() {
     const sc   = parseCount(document.getElementById('edit-sample-count').value);
-    const sw   = parseFloat(document.getElementById('edit-sample-weight').value);
-    const tw   = parseFloat(document.getElementById('edit-total-weight').value);
-    const tare = parseFloat(document.getElementById('edit-tare').value) || 0;
+    const sw   = parseItalianNumber(document.getElementById('edit-sample-weight').value);
+    const tw   = parseItalianNumber(document.getElementById('edit-total-weight').value);
+    const tare = parseItalianNumber(document.getElementById('edit-tare').value) || 0;
 
     if (!sc || sc <= 0 || !sw || sw <= 0 || !tw || tw <= 0) return;
 
