@@ -50,17 +50,13 @@
             </div>
             <div class="col-6 col-md-2">
                 <label class="form-label fw-semibold small">Dal</label>
-                <div class="d-flex gap-1">
-                    <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
-                    <input type="time" name="time_from" class="form-control" style="max-width:110px" value="{{ request('time_from') }}">
-                </div>
+                <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
+                <input type="time" name="time_from" class="form-control mt-1" value="{{ request('time_from') }}" placeholder="HH:MM">
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
                 <label class="form-label fw-semibold small">Al</label>
-                <div class="d-flex gap-1">
-                    <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
-                    <input type="time" name="time_to" class="form-control" style="max-width:110px" value="{{ request('time_to') }}">
-                </div>
+                <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
+                <input type="time" name="time_to" class="form-control mt-1" value="{{ request('time_to') }}" placeholder="HH:MM">
             </div>
             <div class="col-6 col-md-2">
                 <label class="form-label fw-semibold small">Magazzino</label>
