@@ -207,7 +207,7 @@ class InventoryController extends Controller
     public function export(Request $request)
     {
         abort_unless(auth()->user()->isAdmin(), 403);
-        $filters  = $request->only(['date_from', 'date_to', 'warehouse_id', 'area_id', 'user_id', 'source', 'search', 'um']);
+        $filters  = $request->only(['date_from', 'time_from', 'date_to', 'time_to', 'warehouse_id', 'area_id', 'user_id', 'source', 'search', 'um']);
         $filename = 'inventario_' . now()->format('Ymd_His') . '.xlsx';
         return Excel::download(new InventoryExport($filters), $filename);
     }
@@ -215,10 +215,12 @@ class InventoryController extends Controller
     private function applyFilters(Builder $query, Request $request): Builder
     {
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+            $from = $request->date_from . ' ' . ($request->filled('time_from') ? $request->time_from . ':00' : '00:00:00');
+            $query->where('created_at', '>=', $from);
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+            $to = $request->date_to . ' ' . ($request->filled('time_to') ? $request->time_to . ':59' : '23:59:59');
+            $query->where('created_at', '<=', $to);
         }
         if ($request->filled('warehouse_id')) {
             $query->where('warehouse_id', $request->warehouse_id);

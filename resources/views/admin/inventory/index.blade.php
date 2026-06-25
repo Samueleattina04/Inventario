@@ -9,12 +9,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0"><i class="bi bi-table me-2 text-primary"></i>Registro Inventario</h4>
     <div class="d-flex gap-2">
-        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source','search','um'])) }}"
+        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','time_from','date_to','time_to','warehouse_id','area_id','user_id','source','search','um'])) }}"
            class="btn btn-outline-primary btn-sm">
             <i class="bi bi-layers me-1"></i>Per Articolo
         </a>
         @if(auth()->user()->isAdmin())
-        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','date_to','warehouse_id','area_id','user_id','source','search','um'])) }}"
+        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','time_from','date_to','time_to','warehouse_id','area_id','user_id','source','search','um'])) }}"
            class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
         </a>
@@ -50,11 +50,17 @@
             </div>
             <div class="col-6 col-md-2">
                 <label class="form-label fw-semibold small">Dal</label>
-                <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
+                <div class="d-flex gap-1">
+                    <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
+                    <input type="time" name="time_from" class="form-control" style="max-width:110px" value="{{ request('time_from') }}">
+                </div>
             </div>
             <div class="col-6 col-md-3">
                 <label class="form-label fw-semibold small">Al</label>
-                <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
+                <div class="d-flex gap-1">
+                    <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
+                    <input type="time" name="time_to" class="form-control" style="max-width:110px" value="{{ request('time_to') }}">
+                </div>
             </div>
             <div class="col-6 col-md-2">
                 <label class="form-label fw-semibold small">Magazzino</label>
