@@ -28,6 +28,7 @@
         <table class="table table-hover align-middle mb-0 table-sm">
             <thead class="table-secondary">
                 <tr>
+                    <th>ID</th>
                     <th>Data/Ora</th>
                     <th>Operatore</th>
                     <th>Magazzino / Area</th>
@@ -44,6 +45,7 @@
             <tbody>
                 @forelse($records as $record)
                 <tr class="text-muted">
+                    <td class="small">#{{ $record->id }}</td>
                     <td class="text-nowrap small">{{ $record->created_at->format('d/m/Y H:i') }}</td>
                     <td>{{ $record->user?->name }}</td>
                     <td class="small">
@@ -95,7 +97,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="11" class="text-center text-muted py-4">Nessuna registrazione nascosta.</td></tr>
+                <tr><td colspan="12" class="text-center text-muted py-4">Nessuna registrazione nascosta.</td></tr>
                 @endforelse
             </tbody>
         </table>
