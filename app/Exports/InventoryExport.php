@@ -20,10 +20,12 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
             ->orderBy('created_at');
 
         if (! empty($this->filters['date_from'])) {
-            $query->whereDate('created_at', '>=', $this->filters['date_from']);
+            $from = $this->filters['date_from'] . ' ' . (! empty($this->filters['time_from']) ? $this->filters['time_from'] . ':00' : '00:00:00');
+            $query->where('created_at', '>=', $from);
         }
         if (! empty($this->filters['date_to'])) {
-            $query->whereDate('created_at', '<=', $this->filters['date_to']);
+            $to = $this->filters['date_to'] . ' ' . (! empty($this->filters['time_to']) ? $this->filters['time_to'] . ':59' : '23:59:59');
+            $query->where('created_at', '<=', $to);
         }
         if (! empty($this->filters['warehouse_id'])) {
             $query->where('warehouse_id', $this->filters['warehouse_id']);
@@ -61,6 +63,7 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
     public function headings(): array
     {
         return [
+            'ID',
             'Operatore',
             'Data/Ora',
             'Magazzino',
@@ -83,6 +86,7 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyle
     public function map($record): array
     {
         return [
+            $record->id,
             $record->user?->name ?? '',
             $record->created_at?->format('d/m/Y H:i:s') ?? '',
             $record->warehouse?->name ?? '',
