@@ -158,6 +158,9 @@
             </div>
             <div class="modal-body">
                 <p class="text-muted small mb-3">Verifica le modifiche prima di salvare:</p>
+                <div id="noChangesMsg" class="alert alert-info py-2" style="display:none">
+                    <i class="bi bi-info-circle me-1"></i>Nessuna modifica rilevata.
+                </div>
                 <table class="table table-sm table-bordered">
                     <thead class="table-light">
                         <tr>
@@ -167,22 +170,22 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
+                        <tr id="rowArticleCode">
                             <td class="fw-semibold">Codice articolo</td>
                             <td class="text-danger" id="oldArticleCode">{{ $record->article_code }}</td>
                             <td class="text-success fw-bold" id="newArticleCode"></td>
                         </tr>
-                        <tr>
+                        <tr id="rowLot">
                             <td class="fw-semibold">Lotto</td>
                             <td class="text-danger" id="oldLot">{{ $record->lot ?: '—' }}</td>
                             <td class="text-success fw-bold" id="newLot"></td>
                         </tr>
-                        <tr>
+                        <tr id="rowQuantity">
                             <td class="fw-semibold">Quantità</td>
                             <td class="text-danger" id="oldQuantity">{{ number_format($record->quantity, 2, ',', '.') }}</td>
                             <td class="text-success fw-bold" id="newQuantity"></td>
                         </tr>
-                        <tr>
+                        <tr id="rowUm">
                             <td class="fw-semibold">U.M.</td>
                             <td class="text-danger" id="oldUm">{{ $record->um ?: '—' }}</td>
                             <td class="text-success fw-bold" id="newUm"></td>
@@ -283,10 +286,30 @@ document.getElementById('btnShowConfirm').addEventListener('click', function () 
         return;
     }
 
-    document.getElementById('newArticleCode').textContent = newCode;
-    document.getElementById('newLot').textContent         = newLot || '—';
-    document.getElementById('newQuantity').textContent    = newQty.toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:4});
-    document.getElementById('newUm').textContent          = newUm || '—';
+    const oldCode = document.getElementById('oldArticleCode').textContent.trim();
+    const oldLot  = document.getElementById('oldLot').textContent.trim();
+    const oldQty  = document.getElementById('oldQuantity').textContent.trim();
+    const oldUm   = document.getElementById('oldUm').textContent.trim();
+
+    const newQtyFmt = newQty.toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:4});
+
+    const rows = [
+        { rowId: 'rowArticleCode', oldVal: oldCode,          newVal: newCode,    newElem: 'newArticleCode' },
+        { rowId: 'rowLot',         oldVal: oldLot,           newVal: newLot || '—', newElem: 'newLot' },
+        { rowId: 'rowQuantity',    oldVal: oldQty,           newVal: newQtyFmt,  newElem: 'newQuantity' },
+        { rowId: 'rowUm',          oldVal: oldUm,            newVal: newUm || '—', newElem: 'newUm' },
+    ];
+
+    let hasChanges = false;
+    rows.forEach(r => {
+        document.getElementById(r.newElem).textContent = r.newVal;
+        const changed = r.oldVal !== r.newVal;
+        document.getElementById(r.rowId).style.display = changed ? '' : 'none';
+        if (changed) hasChanges = true;
+    });
+
+    document.getElementById('noChangesMsg').style.display = hasChanges ? 'none' : '';
+    document.getElementById('btnConfirmSave').disabled = !hasChanges;
 
     confirmModal.show();
 });
