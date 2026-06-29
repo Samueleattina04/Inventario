@@ -64,7 +64,7 @@ class RettificaController extends Controller
             'description'  => "Rettifica registrazione #{$record->id} articolo {$record->article_code}",
         ]);
 
-        return redirect()->route('admin.inventory.show', $record)
-            ->with('success', "Rettifica #{$record->id} salvata.");
+        return redirect()->route('admin.rettifica.index')
+            ->with('success', "Rettifica #{$record->id} (articolo {$record->article_code}) salvata.");
     }
 }
