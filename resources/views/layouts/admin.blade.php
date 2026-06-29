@@ -106,6 +106,12 @@
                     <i class="bi bi-eye-slash me-2"></i>Nascoste
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.rettifica.*') ? 'active' : '' }}"
+                   href="{{ route('admin.rettifica.index') }}">
+                    <i class="bi bi-pencil-square me-2"></i>Rettifica
+                </a>
+            </li>
             @if(auth()->user()->isAdmin())
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.activity_log.*') ? 'active' : '' }}"

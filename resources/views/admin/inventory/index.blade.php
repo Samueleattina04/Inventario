@@ -151,7 +151,12 @@
                         <div class="fw-semibold">{{ $record->warehouse?->name }}</div>
                         <div class="text-muted">{{ $record->area?->name }}</div>
                     </td>
-                    <td><code class="small">{{ $record->article_code }}</code></td>
+                    <td>
+                        <code class="small">{{ $record->article_code }}</code>
+                        @if($record->rettified)
+                            <span class="badge bg-warning text-dark ms-1" title="Registrazione rettificata"><i class="bi bi-pencil-square"></i> Rett.</span>
+                        @endif
+                    </td>
                     <td class="small">{{ Str::limit($record->description, 40) }}</td>
                     <td><span class="badge bg-light text-dark">{{ $record->um }}</span></td>
                     <td class="small text-muted">{{ $record->lot }}</td>

@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\RettificaController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -42,6 +43,9 @@ Route::middleware(['auth', 'admin_or_backoffice'])->prefix('admin')->name('admin
     Route::get('/inventory/{record}',              [InventoryController::class, 'show'])->name('inventory.show');
     Route::get('/inventory/{record}/edit',         [InventoryController::class, 'edit'])->name('inventory.edit');
     Route::put('/inventory/{record}',              [InventoryController::class, 'update'])->name('inventory.update');
+
+    Route::get('/rettifica',              [RettificaController::class, 'index'])->name('rettifica.index');
+    Route::put('/rettifica/{record}',     [RettificaController::class, 'update'])->name('rettifica.update');
 });
 
 // Admin-only routes

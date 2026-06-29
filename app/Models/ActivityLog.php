@@ -28,6 +28,7 @@ class ActivityLog extends Model
             'admin_delete' => 'Eliminazione registrazione',
             'admin_hide'   => 'Registrazione nascosta',
             'admin_unhide' => 'Registrazione ripristinata',
+            'rettifica'    => 'Rettifica registrazione',
             default        => $this->action,
         };
     }

@@ -64,7 +64,12 @@ class InventoryController extends Controller
     public function show(InventoryRecord $record)
     {
         $record->load(['user', 'warehouse', 'area']);
-        return view('admin.inventory.show', compact('record'));
+        $rettificaLogs = \App\Models\ActivityLog::with('user')
+            ->where('action', 'rettifica')
+            ->where('subject_id', $record->id)
+            ->orderBy('created_at')
+            ->get();
+        return view('admin.inventory.show', compact('record', 'rettificaLogs'));
     }
 
     public function edit(InventoryRecord $record)

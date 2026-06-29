@@ -8,7 +8,12 @@
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="fw-bold mb-0"><i class="bi bi-card-text me-2 text-primary"></i>Registrazione #{{ $record->id }}</h4>
+    <h4 class="fw-bold mb-0">
+        <i class="bi bi-card-text me-2 text-primary"></i>Registrazione #{{ $record->id }}
+        @if($record->rettified)
+            <span class="badge bg-warning text-dark ms-2 fs-6"><i class="bi bi-pencil-square me-1"></i>Rettificata</span>
+        @endif
+    </h4>
     <div class="d-flex gap-2">
         <a href="{{ route('admin.inventory.edit', $record) }}" class="btn btn-warning btn-sm">
             <i class="bi bi-pencil me-1"></i>Modifica
@@ -22,6 +27,9 @@
             </button>
         </form>
         @endif
+        <a href="{{ route('admin.rettifica.index', ['id' => $record->id]) }}" class="btn btn-outline-warning btn-sm">
+            <i class="bi bi-pencil-square me-1"></i>Rettifica
+        </a>
         <a href="{{ route('admin.inventory.index') }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Torna alla lista
         </a>
@@ -136,4 +144,68 @@
         </div>
     </div>
 </div>
+
+@if($rettificaLogs->isNotEmpty())
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header fw-semibold bg-warning text-dark">
+                <i class="bi bi-pencil-square me-2"></i>Storico Rettifiche
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Data/Ora</th>
+                            <th>Operatore</th>
+                            <th>Campo</th>
+                            <th>Valore precedente</th>
+                            <th>Nuovo valore</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($rettificaLogs as $log)
+                            @php
+                                $fields = [
+                                    'article_code' => 'Codice articolo',
+                                    'description'  => 'Descrizione',
+                                    'um'           => 'U.M.',
+                                    'lot'          => 'Lotto',
+                                    'quantity'     => 'Quantità',
+                                ];
+                                $old = $log->old_values ?? [];
+                                $new = $log->new_values ?? [];
+                                $changed = array_filter($fields, fn($k) => ($old[$k] ?? null) != ($new[$k] ?? null), ARRAY_FILTER_USE_KEY);
+                            @endphp
+                            @foreach($changed as $key => $label)
+                            <tr>
+                                @if($loop->first)
+                                <td class="text-nowrap small" rowspan="{{ count($changed) }}">{{ $log->created_at->format('d/m/Y H:i') }}</td>
+                                <td class="small" rowspan="{{ count($changed) }}">{{ $log->user?->name ?? '—' }}</td>
+                                @endif
+                                <td class="small fw-semibold">{{ $label }}</td>
+                                <td class="small text-danger">
+                                    @if($key === 'quantity')
+                                        {{ number_format((float)($old[$key] ?? 0), 2, ',', '.') }}
+                                    @else
+                                        {{ $old[$key] ?? '—' }}
+                                    @endif
+                                </td>
+                                <td class="small text-success fw-semibold">
+                                    @if($key === 'quantity')
+                                        {{ number_format((float)($new[$key] ?? 0), 2, ',', '.') }}
+                                    @else
+                                        {{ $new[$key] ?? '—' }}
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 @endsection
