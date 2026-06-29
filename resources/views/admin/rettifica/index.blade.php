@@ -158,15 +158,12 @@
             </div>
             <div class="modal-body">
                 <p class="text-muted small mb-3">Verifica le modifiche prima di salvare:</p>
-                <div id="noChangesMsg" class="alert alert-info py-2" style="display:none">
-                    <i class="bi bi-info-circle me-1"></i>Nessuna modifica rilevata.
-                </div>
-                <table class="table table-sm table-bordered">
+                <table class="table table-sm table-bordered" style="table-layout:fixed; word-break:break-word;">
                     <thead class="table-light">
                         <tr>
-                            <th>Campo</th>
-                            <th class="text-danger">Valore precedente</th>
-                            <th class="text-success">Nuovo valore</th>
+                            <th style="width:30%">Campo</th>
+                            <th class="text-danger" style="width:35%">Valore precedente</th>
+                            <th class="text-success" style="width:35%">Nuovo valore</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -286,30 +283,10 @@ document.getElementById('btnShowConfirm').addEventListener('click', function () 
         return;
     }
 
-    const oldCode = document.getElementById('oldArticleCode').textContent.trim();
-    const oldLot  = document.getElementById('oldLot').textContent.trim();
-    const oldQty  = document.getElementById('oldQuantity').textContent.trim();
-    const oldUm   = document.getElementById('oldUm').textContent.trim();
-
-    const newQtyFmt = newQty.toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:4});
-
-    const rows = [
-        { rowId: 'rowArticleCode', oldVal: oldCode,          newVal: newCode,    newElem: 'newArticleCode' },
-        { rowId: 'rowLot',         oldVal: oldLot,           newVal: newLot || '—', newElem: 'newLot' },
-        { rowId: 'rowQuantity',    oldVal: oldQty,           newVal: newQtyFmt,  newElem: 'newQuantity' },
-        { rowId: 'rowUm',          oldVal: oldUm,            newVal: newUm || '—', newElem: 'newUm' },
-    ];
-
-    let hasChanges = false;
-    rows.forEach(r => {
-        document.getElementById(r.newElem).textContent = r.newVal;
-        const changed = r.oldVal !== r.newVal;
-        document.getElementById(r.rowId).style.display = changed ? '' : 'none';
-        if (changed) hasChanges = true;
-    });
-
-    document.getElementById('noChangesMsg').style.display = hasChanges ? 'none' : '';
-    document.getElementById('btnConfirmSave').disabled = !hasChanges;
+    document.getElementById('newArticleCode').textContent = newCode;
+    document.getElementById('newLot').textContent         = newLot || '—';
+    document.getElementById('newQuantity').textContent    = newQty.toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:4});
+    document.getElementById('newUm').textContent          = newUm || '—';
 
     confirmModal.show();
 });
