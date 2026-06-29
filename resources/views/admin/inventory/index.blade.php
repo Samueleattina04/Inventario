@@ -9,12 +9,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0"><i class="bi bi-table me-2 text-primary"></i>Registro Inventario</h4>
     <div class="d-flex gap-2">
-        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','time_from','date_to','time_to','warehouse_id','area_id','user_id','source','search','um'])) }}"
+        <a href="{{ route('admin.inventory.grouped') }}?{{ http_build_query(request()->only(['date_from','time_from','date_to','time_to','warehouse_id','area_id','user_id','source','search','um','rettified'])) }}"
            class="btn btn-outline-primary btn-sm">
             <i class="bi bi-layers me-1"></i>Per Articolo
         </a>
         @if(auth()->user()->isAdmin())
-        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','time_from','date_to','time_to','warehouse_id','area_id','user_id','source','search','um'])) }}"
+        <a href="{{ route('admin.inventory.export') }}?{{ http_build_query(request()->only(['date_from','time_from','date_to','time_to','warehouse_id','area_id','user_id','source','search','um','rettified'])) }}"
            class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
         </a>
@@ -100,6 +100,13 @@
                     <option value="">Tutti</option>
                     <option value="1" {{ request('has_calc') === '1' ? 'selected' : '' }}>Con calcolatore</option>
                     <option value="0" {{ request('has_calc') === '0' ? 'selected' : '' }}>Senza calcolatore</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold small">Rettifica</label>
+                <select name="rettified" class="form-select">
+                    <option value="">Tutte</option>
+                    <option value="1" {{ request('rettified') === '1' ? 'selected' : '' }}>Solo rettificate</option>
                 </select>
             </div>
             <div class="col-6 col-md-2 d-flex gap-2">

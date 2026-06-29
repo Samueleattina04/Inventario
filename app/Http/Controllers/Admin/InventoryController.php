@@ -263,6 +263,9 @@ class InventoryController extends Controller
                 default     => null,
             };
         }
+        if ($request->filled('rettified') && $request->rettified === '1') {
+            $query->where('rettified', true);
+        }
 
         return $query;
     }
