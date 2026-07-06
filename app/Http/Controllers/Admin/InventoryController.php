@@ -250,7 +250,8 @@ class InventoryController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('article_code', 'like', "%{$search}%")
-                  ->orWhere('lot', 'like', "%{$search}%");
+                  ->orWhere('lot', 'like', "%{$search}%")
+                  ->orWhere('id', is_numeric($search) ? $search : null);
             });
         }
         if ($request->filled('source')) {

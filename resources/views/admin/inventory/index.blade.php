@@ -45,7 +45,7 @@
             <input type="hidden" name="source" value="{{ request('source') }}">
             <div class="col-12 col-md-4">
                 <label class="form-label fw-semibold small">Codice / Lotto</label>
-                <input type="text" name="search" class="form-control" placeholder="Cerca codice articolo o lotto..."
+                <input type="text" name="search" class="form-control" placeholder="Cerca codice articolo, lotto o ID..."
                     value="{{ request('search') }}">
             </div>
             <div class="col-6 col-md-2">
