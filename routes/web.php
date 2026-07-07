@@ -51,6 +51,7 @@ Route::middleware(['auth', 'admin_or_backoffice'])->prefix('admin')->name('admin
 // Admin-only routes
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('users', UserController::class);
+    Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle_active');
     Route::resource('warehouses', WarehouseController::class);
 
     Route::post('warehouses/{warehouse}/areas',           [WarehouseController::class, 'storeArea'])->name('warehouses.areas.store');

@@ -65,6 +65,16 @@
                             <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-sm btn-outline-primary me-1">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            @if(auth()->user()->isSuperAdmin() && $user->id !== auth()->id())
+                                <form method="POST" action="{{ route('admin.users.toggle_active', $user) }}" class="d-inline">
+                                    @csrf
+                                    <button type="submit"
+                                        class="btn btn-sm {{ $user->active ? 'btn-outline-warning' : 'btn-outline-success' }} me-1"
+                                        title="{{ $user->active ? 'Disattiva utente' : 'Attiva utente' }}">
+                                        <i class="bi bi-{{ $user->active ? 'pause-circle' : 'play-circle' }}"></i>
+                                    </button>
+                                </form>
+                            @endif
                             @if($user->id !== auth()->id())
                                 <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
                                     class="d-inline"

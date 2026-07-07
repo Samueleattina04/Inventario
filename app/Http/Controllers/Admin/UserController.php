@@ -77,6 +77,20 @@ class UserController extends Controller
             ->with('success', 'Utente aggiornato con successo.');
     }
 
+    public function toggleActive(User $user)
+    {
+        abort_unless(Auth::user()->isSuperAdmin(), 403);
+
+        if ($user->id === Auth::id()) {
+            return back()->with('error', 'Non puoi disattivare il tuo account.');
+        }
+
+        $user->update(['active' => ! $user->active]);
+        $status = $user->active ? 'attivato' : 'disattivato';
+
+        return back()->with('success', "Utente {$user->name} {$status}.");
+    }
+
     public function destroy(User $user)
     {
         if ($user->id === Auth::id()) {
