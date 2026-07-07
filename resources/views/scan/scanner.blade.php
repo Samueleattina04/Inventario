@@ -14,6 +14,11 @@
 @endsection
 
 @section('content')
+@if($demoMode)
+<div class="alert alert-warning text-center fw-bold mb-3 border-warning border-2 py-2">
+    <i class="bi bi-cone-striped me-2"></i>MODALITÀ DEMO — Le scansioni NON verranno salvate nell'inventario reale
+</div>
+@endif
 
 {{-- Toast --}}
 <div class="toast-container position-fixed top-0 end-0 p-3">

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryRecord;
 use App\Models\User;
 use App\Models\Warehouse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -31,13 +32,28 @@ class DashboardController extends Controller
             ->limit(20)
             ->get();
 
+        $demoMode = Cache::get('demo_mode', false);
+
         return view('admin.dashboard', compact(
             'todayCount',
             'totalCount',
             'activeOperators',
             'byWarehouse',
-            'lastRecords'
+            'lastRecords',
+            'demoMode'
         ));
+    }
+
+    public function toggleDemoMode()
+    {
+        $current = Cache::get('demo_mode', false);
+        if ($current) {
+            Cache::forget('demo_mode');
+        } else {
+            Cache::put('demo_mode', true, now()->addHours(12));
+        }
+        $status = $current ? 'disattivata' : 'attivata';
+        return back()->with('success', "Modalità Demo {$status}.");
     }
 
     public function stats()

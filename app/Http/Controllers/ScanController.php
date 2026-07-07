@@ -8,6 +8,7 @@ use App\Models\Warehouse;
 use App\Services\ArticleLookupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class ScanController extends Controller
 {
@@ -18,7 +19,8 @@ class ScanController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('scan.location', compact('warehouses'));
+        $demoMode = Cache::get('demo_mode', false);
+        return view('scan.location', compact('warehouses', 'demoMode'));
     }
 
     public function selectLocation(Request $request)
@@ -61,8 +63,9 @@ class ScanController extends Controller
 
         $warehouseName = session('warehouse_name');
         $areaName      = session('area_name');
+        $demoMode      = Cache::get('demo_mode', false);
 
-        return view('scan.scanner', compact('warehouseName', 'areaName'));
+        return view('scan.scanner', compact('warehouseName', 'areaName', 'demoMode'));
     }
 
     public function lookupArticle(Request $request)
@@ -114,6 +117,7 @@ class ScanController extends Controller
             'warehouseName' => session('warehouse_name'),
             'areaName'      => session('area_name'),
             'umList'        => $umList,
+            'demoMode'      => Cache::get('demo_mode', false),
         ];
 
         return view('scan.article', $data);
@@ -159,6 +163,8 @@ class ScanController extends Controller
             return redirect()->route('location');
         }
 
+        $demoMode = Cache::get('demo_mode', false);
+
         $record = InventoryRecord::create([
             'user_id'      => Auth::id(),
             'warehouse_id' => session('warehouse_id'),
@@ -175,6 +181,7 @@ class ScanController extends Controller
             'total_weight' => $request->total_weight,
             'tare'         => $request->tare ?: null,
             'notes'        => $request->notes,
+            'hidden'       => $demoMode,
         ]);
 
         \App\Models\ActivityLog::create([

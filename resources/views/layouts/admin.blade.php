@@ -71,6 +71,9 @@
     <nav id="sidebar">
         <div class="sidebar-brand">
             <i class="bi bi-box-seam me-2"></i>Inventario
+            @if(\Illuminate\Support\Facades\Cache::get('demo_mode', false))
+                <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">DEMO</span>
+            @endif
         </div>
         <div class="sidebar-section">Navigazione</div>
         <ul class="nav flex-column mt-1">

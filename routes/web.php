@@ -31,8 +31,9 @@ Route::middleware('auth')->group(function () {
 
 // Admin + Backoffice routes (read/edit access)
 Route::middleware(['auth', 'admin_or_backoffice'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard',   [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/api/stats',   [DashboardController::class, 'stats'])->name('api.stats');
+    Route::get('/dashboard',          [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/api/stats',          [DashboardController::class, 'stats'])->name('api.stats');
+    Route::post('/demo-mode/toggle',  [DashboardController::class, 'toggleDemoMode'])->name('demo_mode.toggle');
 
     Route::get('/inventory',                        [InventoryController::class, 'index'])->name('inventory.index');
     Route::get('/inventory/grouped',               [InventoryController::class, 'grouped'])->name('inventory.grouped');
