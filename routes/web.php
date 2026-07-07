@@ -31,9 +31,8 @@ Route::middleware('auth')->group(function () {
 
 // Admin + Backoffice routes (read/edit access)
 Route::middleware(['auth', 'admin_or_backoffice'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard',          [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/api/stats',          [DashboardController::class, 'stats'])->name('api.stats');
-    Route::post('/demo-mode/toggle',  [DashboardController::class, 'toggleDemoMode'])->name('demo_mode.toggle');
+    Route::get('/dashboard',   [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/api/stats',   [DashboardController::class, 'stats'])->name('api.stats');
 
     Route::get('/inventory',                        [InventoryController::class, 'index'])->name('inventory.index');
     Route::get('/inventory/grouped',               [InventoryController::class, 'grouped'])->name('inventory.grouped');
@@ -59,6 +58,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('warehouses/{warehouse}/areas/{area}', [WarehouseController::class, 'destroyArea'])->name('warehouses.areas.destroy');
 
     Route::delete('/inventory/{record}',   [InventoryController::class, 'destroy'])->name('inventory.destroy');
+    Route::delete('/inventory',            [InventoryController::class, 'destroyFiltered'])->name('inventory.destroy_filtered');
 
     Route::get('/activity-log', [ActivityLogController::class, 'index'])->name('activity_log.index');
 });

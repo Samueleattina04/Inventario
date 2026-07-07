@@ -7,38 +7,11 @@
 @endsection
 
 @section('content')
-
-{{-- Demo mode banner --}}
-@if($demoMode)
-<div class="alert alert-warning d-flex align-items-center gap-3 mb-4 border-warning border-2" role="alert">
-    <i class="bi bi-cone-striped fs-4 flex-shrink-0"></i>
-    <div class="flex-grow-1">
-        <strong>MODALITÀ DEMO ATTIVA</strong> — Le scansioni degli operatori vengono salvate come nascoste e non influenzano l'inventario reale.
-    </div>
-    <form method="POST" action="{{ route('admin.demo_mode.toggle') }}" class="flex-shrink-0">
-        @csrf
-        <button type="submit" class="btn btn-danger btn-sm">
-            <i class="bi bi-stop-circle me-1"></i>Disattiva Demo
-        </button>
-    </form>
-</div>
-@endif
-
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h4>
-    <div class="d-flex gap-2">
-        @if(!$demoMode)
-        <form method="POST" action="{{ route('admin.demo_mode.toggle') }}">
-            @csrf
-            <button type="submit" class="btn btn-warning">
-                <i class="bi bi-cone-striped me-1"></i>Attiva Modalità Demo
-            </button>
-        </form>
-        @endif
-        <a href="{{ route('admin.inventory.export') }}" class="btn btn-success">
-            <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
-        </a>
-    </div>
+    <a href="{{ route('admin.inventory.export') }}" class="btn btn-success">
+        <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
+    </a>
 </div>
 
 {{-- Summary cards --}}

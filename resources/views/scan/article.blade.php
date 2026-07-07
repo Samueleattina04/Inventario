@@ -11,11 +11,6 @@
 @endsection
 
 @section('content')
-@if($demoMode)
-<div class="alert alert-warning text-center fw-bold mb-3 border-warning border-2 py-2">
-    <i class="bi bi-cone-striped me-2"></i>MODALITÀ DEMO — Le scansioni NON verranno salvate nell'inventario reale
-</div>
-@endif
 <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-6">
 
