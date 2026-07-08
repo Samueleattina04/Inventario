@@ -59,7 +59,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('warehouses/{warehouse}/areas/{area}', [WarehouseController::class, 'destroyArea'])->name('warehouses.areas.destroy');
 
     Route::delete('/inventory/{record}',   [InventoryController::class, 'destroy'])->name('inventory.destroy');
-    Route::delete('/inventory',            [InventoryController::class, 'destroyFiltered'])->name('inventory.destroy_filtered');
 
     Route::get('/activity-log', [ActivityLogController::class, 'index'])->name('activity_log.index');
 });

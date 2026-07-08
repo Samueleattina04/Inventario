@@ -163,35 +163,6 @@ class InventoryController extends Controller
             ->with('success', 'Registrazione eliminata.');
     }
 
-    public function destroyFiltered(Request $request)
-    {
-        abort_unless(auth()->user()->isAdmin(), 403);
-
-        $query = $this->applyFilters(
-            InventoryRecord::where('hidden', false),
-            $request
-        );
-
-        $count = $query->count();
-
-        if ($count === 0) {
-            return back()->with('info', 'Nessun record corrisponde ai filtri.');
-        }
-
-        $query->delete();
-
-        \App\Models\ActivityLog::create([
-            'user_id'     => \Auth::id(),
-            'action'      => 'admin_delete',
-            'subject_type'=> 'InventoryRecord',
-            'subject_id'  => 0,
-            'description' => "Eliminazione in blocco di {$count} registrazioni tramite filtri.",
-        ]);
-
-        return redirect()->route('admin.inventory.index')
-            ->with('success', "Eliminate {$count} registrazioni.");
-    }
-
     public function hiddenIndex(Request $request)
     {
         request()->session()->save();

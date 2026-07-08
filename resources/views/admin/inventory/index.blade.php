@@ -124,26 +124,9 @@
     </div>
 @endif
 
-{{-- Bulk delete (admin only) --}}
-@if(auth()->user()->isAdmin() && $records->total() > 0)
-<form method="POST" action="{{ route('admin.inventory.destroy_filtered') }}"
-      id="bulkDeleteForm"
-      onsubmit="return confirm('Eliminare definitivamente tutte le {{ $records->total() }} registrazioni corrispondenti ai filtri attuali?\n\nQuesta operazione è IRREVERSIBILE.')">
-    @csrf @method('DELETE')
-    @foreach(request()->only(['date_from','time_from','date_to','time_to','warehouse_id','area_id','user_id','source','search','um','has_calc','rettified']) as $k => $v)
-        <input type="hidden" name="{{ $k }}" value="{{ $v }}">
-    @endforeach
-</form>
-@endif
-
 {{-- Results count --}}
-<div class="text-muted small mb-2 d-flex align-items-center gap-3">
-    <span>{{ $records->total() }} record trovati</span>
-    @if(auth()->user()->isAdmin() && $records->total() > 0)
-    <button type="submit" form="bulkDeleteForm" class="btn btn-outline-danger btn-sm">
-        <i class="bi bi-trash me-1"></i>Elimina tutti i {{ $records->total() }} risultati
-    </button>
-    @endif
+<div class="text-muted small mb-2">
+    {{ $records->total() }} record trovati
 </div>
 
 <div class="card border-0 shadow-sm">
