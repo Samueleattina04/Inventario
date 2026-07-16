@@ -40,21 +40,27 @@ class EsolverReferenceController extends Controller
         // Skip header row
         array_shift($rows);
 
-        // Aggregate quantities by article code (Excel has one row per lot)
+        // Aggregate quantities by article code
+        // Column layout: [0]=Mag [1]=SOMMARE [2]=Articolo [3]=Descrizione [4-7]=Lotto/Coll [8]=UdM [9]=Giacenza
         $aggregated = [];
         foreach ($rows as $row) {
-            $code = trim((string) ($row[0] ?? ''));
+            $code = trim((string) ($row[2] ?? ''));
             if ($code === '') continue;
 
             if (!isset($aggregated[$code])) {
                 $aggregated[$code] = [
                     'article_code' => $code,
-                    'description'  => trim((string) ($row[1] ?? '')),
-                    'um'           => trim((string) ($row[6] ?? '')),
+                    'description'  => trim((string) ($row[3] ?? '')),
+                    'um'           => trim((string) ($row[8] ?? '')),
                     'quantity'     => 0,
+                    'external_qty' => 0,
                 ];
             }
-            $aggregated[$code]['quantity'] += is_numeric($row[7] ?? null) ? (float) $row[7] : 0;
+            $qty = is_numeric($row[9] ?? null) ? (float) $row[9] : 0;
+            $aggregated[$code]['quantity'] += $qty;
+            if (strtoupper(trim((string) ($row[1] ?? ''))) === 'OK') {
+                $aggregated[$code]['external_qty'] += $qty;
+            }
         }
 
         EsolverReference::truncate();

@@ -75,17 +75,29 @@
                 </div>
                 <div class="vr"></div>
                 {{-- Inventory total --}}
+                @php
+                    $externalQty  = $esolver ? (float) $esolver->external_qty : 0;
+                    $countedQty   = (float) $summary->total_qty;
+                    $totalCount   = $countedQty + $externalQty;
+                @endphp
                 <div class="text-end">
                     <div class="text-muted small mb-1">Conteggio inventario</div>
-                    <div class="fw-bold fs-4 text-primary">{{ number_format($summary->total_qty, 2, ',', '.') }}
+                    <div class="fw-bold fs-4 text-primary">{{ number_format($totalCount, 2, ',', '.') }}
                         @if($summary->um) <small class="text-muted fs-6">{{ $summary->um }}</small> @endif
                     </div>
-                    <div class="text-muted small">{{ $summary->record_count }} {{ $summary->record_count == 1 ? 'registrazione' : 'registrazioni' }}</div>
+                    @if($externalQty > 0)
+                        <div class="text-muted small">
+                            {{ number_format($countedQty, 2, ',', '.') }} conta
+                            + {{ number_format($externalQty, 2, ',', '.') }} dep. esterni
+                        </div>
+                    @else
+                        <div class="text-muted small">{{ $summary->record_count }} {{ $summary->record_count == 1 ? 'registrazione' : 'registrazioni' }}</div>
+                    @endif
                 </div>
                 @if($esolver)
                 <div class="vr"></div>
                 {{-- Difference --}}
-                @php $diff = $summary->total_qty - $esolver->quantity; @endphp
+                @php $diff = $totalCount - $esolver->quantity; @endphp
                 <div class="text-end">
                     <div class="text-muted small mb-1">Differenza</div>
                     <div class="fw-bold fs-4 {{ $diff == 0 ? 'text-success' : ($diff > 0 ? 'text-warning' : 'text-danger') }}">
