@@ -23,7 +23,7 @@ class ViewerController extends Controller
         $sort = $request->get('sort', 'article_code');
         $dir  = $request->get('dir', 'asc');
 
-        if (!in_array($sort, ['article_code', 'created_at', 'quantity'])) {
+        if (!in_array($sort, ['id', 'article_code', 'created_at', 'quantity'])) {
             $sort = 'article_code';
         }
         $dir = $dir === 'desc' ? 'desc' : 'asc';

@@ -67,7 +67,11 @@
                                 return route('viewer.index') . '?' . http_build_query(array_filter(['sort' => $col, 'dir' => $dir, 'search' => $search]));
                             }
                         @endphp
-                        <th>ID</th>
+                        <th>
+                            <a href="{{ sortUrl('id', $curSort, $curDir, $search) }}" class="text-white text-decoration-none">
+                                ID <i class="bi bi-arrow-{{ $curSort === 'id' ? ($curDir === 'asc' ? 'up' : 'down') : 'down-up' }} small"></i>
+                            </a>
+                        </th>
                         <th>Data/Ora</th>
                         <th>Operatore</th>
                         <th>Magazzino / Area</th>
