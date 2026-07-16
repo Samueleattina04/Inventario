@@ -112,6 +112,12 @@
                     <i class="bi bi-pencil-square me-2"></i>Rettifica
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.esolver.*') ? 'active' : '' }}"
+                   href="{{ route('admin.esolver.index') }}">
+                    <i class="bi bi-database-up me-2"></i>Giacenze Esolver
+                </a>
+            </li>
             @if(auth()->user()->isAdmin())
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.activity_log.*') ? 'active' : '' }}"

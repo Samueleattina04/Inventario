@@ -61,11 +61,27 @@
                 <div class="fw-bold fs-5"><code>{{ $summary->article_code }}</code></div>
                 <div class="text-muted small">{{ $summary->description }}</div>
             </div>
-            <div class="text-end">
-                <div class="fw-bold fs-4 text-primary">{{ number_format($summary->total_qty, 2, ',', '.') }}
-                    @if($summary->um) <small class="text-muted fs-6">{{ $summary->um }}</small> @endif
+            <div class="d-flex gap-4 align-items-center">
+                {{-- Esolver reference quantity --}}
+                <div class="text-end">
+                    <div class="text-muted small mb-1">Giacenza Esolver</div>
+                    @if($esolver)
+                        <div class="fw-bold fs-4 text-secondary">{{ number_format($esolver->quantity, 2, ',', '.') }}
+                            @if($esolver->um) <small class="text-muted fs-6">{{ $esolver->um }}</small> @endif
+                        </div>
+                    @else
+                        <div class="text-muted fst-italic small">Non presente</div>
+                    @endif
                 </div>
-                <div class="text-muted small">{{ $summary->record_count }} {{ $summary->record_count == 1 ? 'registrazione' : 'registrazioni' }}</div>
+                <div class="vr"></div>
+                {{-- Inventory total --}}
+                <div class="text-end">
+                    <div class="text-muted small mb-1">Conteggio inventario</div>
+                    <div class="fw-bold fs-4 text-primary">{{ number_format($summary->total_qty, 2, ',', '.') }}
+                        @if($summary->um) <small class="text-muted fs-6">{{ $summary->um }}</small> @endif
+                    </div>
+                    <div class="text-muted small">{{ $summary->record_count }} {{ $summary->record_count == 1 ? 'registrazione' : 'registrazioni' }}</div>
+                </div>
             </div>
         </div>
     </div>

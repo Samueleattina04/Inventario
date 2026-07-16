@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\RettificaController;
+use App\Http\Controllers\Admin\EsolverReferenceController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -67,4 +68,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('/inventory/{record}',   [InventoryController::class, 'destroy'])->name('inventory.destroy');
 
     Route::get('/activity-log', [ActivityLogController::class, 'index'])->name('activity_log.index');
+
+    Route::get('/esolver',         [EsolverReferenceController::class, 'index'])->name('esolver.index');
+    Route::post('/esolver/import', [EsolverReferenceController::class, 'import'])->name('esolver.import');
 });
