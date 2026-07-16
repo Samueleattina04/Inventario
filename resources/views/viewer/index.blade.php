@@ -82,6 +82,21 @@
                     </div>
                     <div class="text-muted small">{{ $summary->record_count }} {{ $summary->record_count == 1 ? 'registrazione' : 'registrazioni' }}</div>
                 </div>
+                @if($esolver)
+                <div class="vr"></div>
+                {{-- Difference --}}
+                @php $diff = $summary->total_qty - $esolver->quantity; @endphp
+                <div class="text-end">
+                    <div class="text-muted small mb-1">Differenza</div>
+                    <div class="fw-bold fs-4 {{ $diff == 0 ? 'text-success' : ($diff > 0 ? 'text-warning' : 'text-danger') }}">
+                        {{ $diff > 0 ? '+' : '' }}{{ number_format($diff, 2, ',', '.') }}
+                        @if($summary->um) <small class="fs-6">{{ $summary->um }}</small> @endif
+                    </div>
+                    <div class="small {{ $diff == 0 ? 'text-success' : ($diff > 0 ? 'text-warning' : 'text-danger') }}">
+                        {{ $diff == 0 ? 'Quadra' : ($diff > 0 ? 'Eccedenza' : 'Mancanza') }}
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
     </div>
