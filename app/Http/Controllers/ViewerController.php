@@ -21,8 +21,8 @@ class ViewerController extends Controller
         if ($search) {
             $summary = InventoryRecord::where('hidden', false)
                 ->where('article_code', $search)
-                ->selectRaw('article_code, description, um, SUM(quantity) as total_qty, COUNT(*) as record_count')
-                ->groupBy('article_code', 'description', 'um')
+                ->selectRaw('article_code, MAX(description) as description, MAX(um) as um, SUM(quantity) as total_qty, COUNT(*) as record_count')
+                ->groupBy('article_code')
                 ->first();
 
             $esolver = EsolverReference::where('article_code', $search)->first();
