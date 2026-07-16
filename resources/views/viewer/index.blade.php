@@ -67,64 +67,72 @@
                                 return route('viewer.index') . '?' . http_build_query(array_filter(['sort' => $col, 'dir' => $dir, 'search' => $search]));
                             }
                         @endphp
+                        <th>ID</th>
+                        <th>Data/Ora</th>
+                        <th>Operatore</th>
+                        <th>Magazzino / Area</th>
                         <th>
                             <a href="{{ sortUrl('article_code', $curSort, $curDir, $search) }}" class="text-white text-decoration-none">
-                                Codice Articolo
-                                @if($curSort === 'article_code')
-                                    <i class="bi bi-arrow-{{ $curDir === 'asc' ? 'up' : 'down' }}"></i>
-                                @endif
+                                Codice <i class="bi bi-arrow-{{ $curSort === 'article_code' ? ($curDir === 'asc' ? 'up' : 'down') : 'down-up' }} small"></i>
                             </a>
                         </th>
                         <th>Descrizione</th>
                         <th>UM</th>
                         <th>Lotto</th>
                         <th>Scadenza</th>
-                        <th>
+                        <th class="text-end">
                             <a href="{{ sortUrl('quantity', $curSort, $curDir, $search) }}" class="text-white text-decoration-none">
-                                Quantità
-                                @if($curSort === 'quantity')
-                                    <i class="bi bi-arrow-{{ $curDir === 'asc' ? 'up' : 'down' }}"></i>
-                                @endif
+                                Quantità <i class="bi bi-arrow-{{ $curSort === 'quantity' ? ($curDir === 'asc' ? 'up' : 'down') : 'down-up' }} small"></i>
                             </a>
                         </th>
-                        <th>Magazzino / Area</th>
-                        <th>
-                            <a href="{{ sortUrl('created_at', $curSort, $curDir, $search) }}" class="text-white text-decoration-none">
-                                Data
-                                @if($curSort === 'created_at')
-                                    <i class="bi bi-arrow-{{ $curDir === 'asc' ? 'up' : 'down' }}"></i>
-                                @endif
-                            </a>
-                        </th>
+                        <th>DB</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($records as $record)
                     <tr>
-                        <td><code class="small">{{ $record->article_code }}</code></td>
-                        <td class="small">{{ Str::limit($record->description, 45) }}</td>
+                        <td class="text-muted small">#{{ $record->id }}</td>
+                        <td class="text-nowrap small">{{ $record->created_at->format('d/m/Y H:i') }}</td>
+                        <td>{{ $record->user?->name }}</td>
+                        <td class="small">
+                            <div class="fw-semibold">{{ $record->warehouse?->name }}</div>
+                            <div class="text-muted">{{ $record->area?->name }}</div>
+                        </td>
+                        <td>
+                            <code class="small">{{ $record->article_code }}</code>
+                            @if($record->rettified)
+                                <span class="badge bg-warning text-dark ms-1" title="Rettificata"><i class="bi bi-pencil-square"></i></span>
+                            @endif
+                        </td>
+                        <td class="small">{{ Str::limit($record->description, 40) }}</td>
                         <td><span class="badge bg-light text-dark">{{ $record->um }}</span></td>
                         <td class="small text-muted">{{ $record->lot ?: '—' }}</td>
                         <td class="small text-nowrap">
                             @if($record->expiry_date)
                                 @php $exp = $record->expiry_date; @endphp
-                                <span class="{{ $exp->isPast() ? 'text-danger fw-bold' : ($exp->diffInDays() < 30 ? 'text-warning fw-semibold' : '') }}">
+                                <span class="{{ $exp->isPast() ? 'text-danger fw-bold' : ($exp->diffInDays() < 30 ? 'text-warning fw-semibold' : 'text-success') }}">
                                     {{ $exp->format('d/m/Y') }}
                                 </span>
                             @else
                                 <span class="text-muted">—</span>
                             @endif
                         </td>
-                        <td class="fw-bold text-end">{{ number_format($record->quantity, 2, ',', '.') }}</td>
-                        <td class="small">
-                            <div class="fw-semibold">{{ $record->warehouse?->name }}</div>
-                            <div class="text-muted">{{ $record->area?->name }}</div>
+                        <td class="text-end fw-bold">{{ number_format($record->quantity, 2, ',', '.') }}</td>
+                        <td>
+                            @if(str_starts_with($record->db_source ?? '', 'sqlsrv'))
+                                <span class="badge bg-primary" title="SQL Server">SQL</span>
+                            @elseif($record->db_source === 'access')
+                                <span class="badge bg-info text-dark" title="Access">ACC</span>
+                            @elseif($record->db_source === 'not_found')
+                                <span class="badge bg-warning text-dark" title="Non trovato">N/T</span>
+                            @else
+                                <span class="badge bg-secondary">{{ $record->db_source }}</span>
+                            @endif
                         </td>
-                        <td class="small text-nowrap text-muted">{{ $record->created_at->format('d/m/Y H:i') }}</td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-5">
+                        <td colspan="11" class="text-center text-muted py-5">
                             <i class="bi bi-inbox display-6 d-block mb-2"></i>
                             Nessuna registrazione trovata.
                         </td>

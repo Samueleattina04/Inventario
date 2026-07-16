@@ -9,7 +9,7 @@ class ViewerController extends Controller
 {
     public function index(Request $request)
     {
-        $query = InventoryRecord::with(['warehouse', 'area'])
+        $query = InventoryRecord::with(['warehouse', 'area', 'user'])
             ->where('hidden', false);
 
         if ($request->filled('search')) {
