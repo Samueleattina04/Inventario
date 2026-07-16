@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ScanController;
+use App\Http\Controllers\ViewerController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController;
@@ -16,6 +17,11 @@ Route::redirect('/', '/login');
 Route::get('/login',  [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Viewer routes
+Route::middleware(['auth', 'viewer'])->prefix('viewer')->name('viewer.')->group(function () {
+    Route::get('/', [ViewerController::class, 'index'])->name('index');
+});
 
 // Operator routes
 Route::middleware('auth')->group(function () {

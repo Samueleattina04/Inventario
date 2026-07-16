@@ -85,6 +85,9 @@
                             <option value="backoffice" {{ old('role', $user?->role) === 'backoffice' ? 'selected' : '' }}>
                                 Backoffice
                             </option>
+                            <option value="viewer" {{ old('role', $user?->role) === 'viewer' ? 'selected' : '' }}>
+                                Visualizzatore
+                            </option>
                             <option value="admin" {{ old('role', $user?->role) === 'admin' ? 'selected' : '' }}>
                                 Amministratore
                             </option>

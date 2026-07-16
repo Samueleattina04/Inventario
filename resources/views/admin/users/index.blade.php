@@ -50,6 +50,8 @@
                                 <span class="badge bg-danger">Admin</span>
                             @elseif($user->role === 'backoffice')
                                 <span class="badge bg-info text-dark">Backoffice</span>
+                            @elseif($user->role === 'viewer')
+                                <span class="badge bg-primary">Visualizzatore</span>
                             @else
                                 <span class="badge bg-secondary">Operatore</span>
                             @endif
@@ -69,20 +71,9 @@
                                 <form method="POST" action="{{ route('admin.users.toggle_active', $user) }}" class="d-inline">
                                     @csrf
                                     <button type="submit"
-                                        class="btn btn-sm {{ $user->active ? 'btn-outline-warning' : 'btn-outline-success' }} me-1"
+                                        class="btn btn-sm {{ $user->active ? 'btn-outline-warning' : 'btn-outline-success' }}"
                                         title="{{ $user->active ? 'Disattiva utente' : 'Attiva utente' }}">
                                         <i class="bi bi-{{ $user->active ? 'pause-circle' : 'play-circle' }}"></i>
-                                    </button>
-                                </form>
-                            @endif
-                            @if($user->id !== auth()->id())
-                                <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
-                                    class="d-inline"
-                                    onsubmit="return confirm('Eliminare l\'utente {{ $user->name }}?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
                             @endif

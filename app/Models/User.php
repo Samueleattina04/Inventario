@@ -31,6 +31,11 @@ class User extends Authenticatable
         return $this->username === 'admin';
     }
 
+    public function isViewer(): bool
+    {
+        return $this->role === 'viewer';
+    }
+
     public function isBackoffice(): bool
     {
         return $this->role === 'backoffice';
