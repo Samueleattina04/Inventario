@@ -26,10 +26,16 @@ class EsolverReferenceController extends Controller
             'file.mimes'    => 'Il file deve essere in formato Excel (.xlsx o .xls).',
         ]);
 
-        $path        = $request->file('file')->getRealPath();
-        $spreadsheet = IOFactory::load($path);
+        ini_set('memory_limit', '512M');
+
+        $path   = $request->file('file')->getRealPath();
+        $reader = IOFactory::createReaderForFile($path);
+        $reader->setReadDataOnly(true);
+        $spreadsheet = $reader->load($path);
         $sheet       = $spreadsheet->getActiveSheet();
         $rows        = $sheet->toArray(null, true, true, false);
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
 
         // Skip header row
         array_shift($rows);
