@@ -12,21 +12,26 @@ class ViewerController extends Controller
         $query = InventoryRecord::with(['warehouse', 'area', 'user'])
             ->where('hidden', false);
 
-        if ($request->filled('search')) {
-            $search = trim($request->search);
+        $search  = $request->filled('search') ? trim($request->search) : null;
+        $summary = null;
+        $details = collect();
+
+        if ($search) {
             $query->where('article_code', $search);
+
+            $summary = InventoryRecord::where('hidden', false)
+                ->where('article_code', $search)
+                ->selectRaw('article_code, description, um, SUM(quantity) as total_qty, COUNT(*) as record_count')
+                ->groupBy('article_code', 'description', 'um')
+                ->first();
+
+            $details = InventoryRecord::with(['warehouse', 'area', 'user'])
+                ->where('hidden', false)
+                ->where('article_code', $search)
+                ->orderByDesc('created_at')
+                ->get();
         }
 
-        $sort = $request->get('sort', 'article_code');
-        $dir  = $request->get('dir', 'asc');
-
-        if (!in_array($sort, ['id', 'article_code', 'created_at', 'quantity'])) {
-            $sort = 'article_code';
-        }
-        $dir = $dir === 'desc' ? 'desc' : 'asc';
-
-        $records = $query->orderBy($sort, $dir)->paginate(50)->withQueryString();
-
-        return view('viewer.index', compact('records'));
+        return view('viewer.index', compact('summary', 'details', 'search'));
     }
 }
