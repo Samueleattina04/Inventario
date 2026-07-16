@@ -13,11 +13,8 @@ class ViewerController extends Controller
             ->where('hidden', false);
 
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('article_code', 'like', "%{$search}%")
-                  ->orWhere('lot', 'like', "%{$search}%");
-            });
+            $search = trim($request->search);
+            $query->where('article_code', $search);
         }
 
         $sort = $request->get('sort', 'article_code');

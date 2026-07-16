@@ -40,7 +40,7 @@
                 <input type="hidden" name="dir"  value="{{ request('dir', 'asc') }}">
                 <div class="flex-grow-1">
                     <input type="text" name="search" class="form-control"
-                           placeholder="Cerca per codice articolo o lotto..."
+                           placeholder="Inserisci il codice articolo esatto..."
                            value="{{ request('search') }}">
                 </div>
                 <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Cerca</button>
@@ -51,7 +51,8 @@
         </div>
     </div>
 
-    <div class="text-muted small mb-2">{{ $records->total() }} registrazioni trovate</div>
+    @if(request()->filled('search'))
+    <div class="text-muted small mb-2">{{ $records->total() }} registrazioni trovate per "<strong>{{ request('search') }}</strong>"</div>
 
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
@@ -151,6 +152,7 @@
         </div>
         @endif
     </div>
+    @endif
 </div>
 
 <script src="/js/bootstrap.bundle.min.js"></script>
