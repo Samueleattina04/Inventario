@@ -32,24 +32,35 @@ class EsolverReferenceController extends Controller
         $rows        = $sheet->toArray(null, true, true, false);
 
         // Skip header row
-        $header  = array_shift($rows);
-        $imported = 0;
+        array_shift($rows);
 
-        EsolverReference::truncate();
-
+        // Aggregate quantities by article code (Excel has one row per lot)
+        $aggregated = [];
         foreach ($rows as $row) {
             $code = trim((string) ($row[0] ?? ''));
             if ($code === '') continue;
 
-            EsolverReference::create([
-                'article_code' => $code,
-                'description'  => trim((string) ($row[1] ?? '')),
-                'um'           => trim((string) ($row[6] ?? '')),
-                'quantity'     => is_numeric($row[7] ?? null) ? (float) $row[7] : 0,
-            ]);
-            $imported++;
+            if (!isset($aggregated[$code])) {
+                $aggregated[$code] = [
+                    'article_code' => $code,
+                    'description'  => trim((string) ($row[1] ?? '')),
+                    'um'           => trim((string) ($row[6] ?? '')),
+                    'quantity'     => 0,
+                ];
+            }
+            $aggregated[$code]['quantity'] += is_numeric($row[7] ?? null) ? (float) $row[7] : 0;
         }
 
-        return back()->with('success', "Importati {$imported} articoli da Esolver.");
+        EsolverReference::truncate();
+
+        foreach (array_chunk(array_values($aggregated), 500) as $chunk) {
+            EsolverReference::insert(array_map(fn($r) => array_merge($r, [
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]), $chunk));
+        }
+
+        $imported = count($aggregated);
+        return back()->with('success', "Importati {$imported} articoli da Esolver (quantità aggregate per lotto).");
     }
 }
