@@ -118,6 +118,12 @@
                     <i class="bi bi-database-up me-2"></i>Giacenze Esolver
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.esolver-detail.*') ? 'active' : '' }}"
+                   href="{{ route('admin.esolver-detail.index') }}">
+                    <i class="bi bi-file-earmark-arrow-down me-2"></i>Rettifica Export
+                </a>
+            </li>
             @if(auth()->user()->isAdmin())
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.activity_log.*') ? 'active' : '' }}"

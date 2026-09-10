@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\RettificaController;
 use App\Http\Controllers\Admin\EsolverReferenceController;
+use App\Http\Controllers\Admin\EsolverDetailController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -71,4 +72,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('/esolver',         [EsolverReferenceController::class, 'index'])->name('esolver.index');
     Route::post('/esolver/import', [EsolverReferenceController::class, 'import'])->name('esolver.import');
+
+    Route::get('/esolver-detail',         [EsolverDetailController::class, 'index'])->name('esolver-detail.index');
+    Route::post('/esolver-detail/import', [EsolverDetailController::class, 'import'])->name('esolver-detail.import');
+    Route::get('/esolver-detail/export',  [EsolverDetailController::class, 'export'])->name('esolver-detail.export');
 });
