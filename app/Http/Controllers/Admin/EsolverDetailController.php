@@ -24,7 +24,7 @@ class EsolverDetailController extends Controller
                 'article_code, MAX(description) as description, MAX(um) as um,
                  COALESCE(lot, \'\') as lot_key, SUM(quantity) as esolver_qty'
             )
-                ->groupBy('article_code', 'lot_key')
+                ->groupBy('article_code', 'lot')
                 ->get()
                 ->keyBy(fn($r) => $r->article_code . '||' . $r->lot_key);
 
@@ -33,7 +33,7 @@ class EsolverDetailController extends Controller
                 ->selectRaw(
                     'article_code, COALESCE(lot, \'\') as lot_key, SUM(quantity) as count_qty'
                 )
-                ->groupBy('article_code', 'lot_key')
+                ->groupBy('article_code', 'lot')
                 ->get()
                 ->keyBy(fn($r) => $r->article_code . '||' . $r->lot_key);
 
@@ -147,13 +147,13 @@ class EsolverDetailController extends Controller
         $esolver = EsolverDetail::selectRaw(
             'article_code, MAX(um) as um, COALESCE(lot, \'\') as lot_key, SUM(quantity) as esolver_qty'
         )
-            ->groupBy('article_code', 'lot_key')
+            ->groupBy('article_code', 'lot')
             ->get()
             ->keyBy(fn($r) => $r->article_code . '||' . $r->lot_key);
 
         $counts = InventoryRecord::where('hidden', false)
             ->selectRaw('article_code, COALESCE(lot, \'\') as lot_key, SUM(quantity) as count_qty')
-            ->groupBy('article_code', 'lot_key')
+            ->groupBy('article_code', 'lot')
             ->get()
             ->keyBy(fn($r) => $r->article_code . '||' . $r->lot_key);
 
