@@ -27,15 +27,17 @@ class WarehouseController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'   => 'required|string|max:255',
-            'code'   => 'required|string|max:50|unique:warehouses,code',
-            'active' => 'boolean',
+            'name'     => 'required|string|max:255',
+            'code'     => 'required|string|max:50|unique:warehouses,code',
+            'mag_code' => 'nullable|string|max:20',
+            'active'   => 'boolean',
         ]);
 
         Warehouse::create([
-            'name'   => $request->name,
-            'code'   => strtoupper($request->code),
-            'active' => $request->boolean('active', true),
+            'name'     => $request->name,
+            'code'     => strtoupper($request->code),
+            'mag_code' => trim($request->mag_code) ?: null,
+            'active'   => $request->boolean('active', true),
         ]);
 
         return redirect()->route('admin.warehouses.index')
@@ -50,15 +52,17 @@ class WarehouseController extends Controller
     public function update(Request $request, Warehouse $warehouse)
     {
         $request->validate([
-            'name'   => 'required|string|max:255',
-            'code'   => 'required|string|max:50|unique:warehouses,code,' . $warehouse->id,
-            'active' => 'boolean',
+            'name'     => 'required|string|max:255',
+            'code'     => 'required|string|max:50|unique:warehouses,code,' . $warehouse->id,
+            'mag_code' => 'nullable|string|max:20',
+            'active'   => 'boolean',
         ]);
 
         $warehouse->update([
-            'name'   => $request->name,
-            'code'   => strtoupper($request->code),
-            'active' => $request->boolean('active', true),
+            'name'     => $request->name,
+            'code'     => strtoupper($request->code),
+            'mag_code' => trim($request->mag_code) ?: null,
+            'active'   => $request->boolean('active', true),
         ]);
 
         return redirect()->route('admin.warehouses.index')

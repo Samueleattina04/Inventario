@@ -36,6 +36,12 @@
                        value="{{ old('code', $warehouse?->code) }}" placeholder="Es. MAG-A" style="text-transform:uppercase">
                 <div class="form-text">Identificativo breve univoco.</div>
             </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Codice Mag Esolver</label>
+                <input type="text" name="mag_code" class="form-control"
+                       value="{{ old('mag_code', $warehouse?->mag_code) }}" placeholder="Es. 01, 06, 61">
+                <div class="form-text">Codice magazzino usato nel file Esolver APP (colonna "Mag"). Necessario per il confronto rettifica.</div>
+            </div>
             <div class="form-check form-switch mb-4">
                 <input class="form-check-input" type="checkbox" name="active" value="1" id="active"
                        {{ old('active', $warehouse?->active ?? true) ? 'checked' : '' }}>

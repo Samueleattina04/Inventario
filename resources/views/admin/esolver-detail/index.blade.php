@@ -94,6 +94,8 @@
         <table class="table table-sm table-hover align-middle mb-0">
             <thead class="table-light sticky-top">
                 <tr>
+                    <th>Mag</th>
+                    <th>Magazzino</th>
                     <th>Articolo</th>
                     <th>Descrizione</th>
                     <th>Lotto</th>
@@ -106,8 +108,10 @@
             <tbody>
                 @forelse($rows as $row)
                 <tr class="{{ $row->is_diff ? 'table-warning' : '' }}">
+                    <td class="small fw-semibold">{{ $row->mag }}</td>
+                    <td class="small text-muted" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $row->warehouse }}">{{ $row->warehouse }}</td>
                     <td class="fw-semibold text-nowrap"><code>{{ $row->article_code }}</code></td>
-                    <td class="small text-muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $row->description }}">{{ $row->description }}</td>
+                    <td class="small text-muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $row->description }}">{{ $row->description }}</td>
                     <td class="small">{{ $row->lot ?: '—' }}</td>
                     <td class="text-end">
                         @if($row->esolver_qty !== null)
@@ -132,7 +136,7 @@
                             <span class="badge bg-secondary">Solo Esolver → 0</span>
                         @elseif($row->only_count)
                             <span class="badge bg-primary">Solo conta</span>
-                        @elseif($row->esolver_qty == $row->count_qty)
+                        @elseif(round((float)$row->esolver_qty,4) == round((float)$row->count_qty,4))
                             <span class="badge bg-success">Quadra</span>
                         @else
                             <span class="badge bg-danger">Differenza</span>

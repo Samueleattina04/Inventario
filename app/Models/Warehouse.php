@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Warehouse extends Model
 {
-    protected $fillable = ['name', 'code', 'active'];
+    protected $fillable = ['name', 'code', 'mag_code', 'active'];
 
     protected function casts(): array
     {
