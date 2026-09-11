@@ -78,7 +78,12 @@
                     {{ $label }}
                 </button>
             @endforeach
-            <span class="ms-auto text-muted small">{{ $rows->count() }} righe</span>
+            <span class="ms-auto text-muted small">
+                {{ $rows->count() }} righe mostrate
+                @if($totalRows > $rows->count())
+                    <span class="text-warning fw-semibold">(su {{ $totalRows }} totali — usa i filtri per restringere)</span>
+                @endif
+            </span>
         </form>
     </div>
 </div>

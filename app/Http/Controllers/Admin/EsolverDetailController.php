@@ -12,11 +12,13 @@ class EsolverDetailController extends Controller
 {
     public function index(Request $request)
     {
+        ini_set('memory_limit', '512M');
+
         $count      = EsolverDetail::count();
         $lastUpdate = EsolverDetail::latest('updated_at')->value('updated_at');
 
         $rows       = collect();
-        $filter     = $request->get('filter', 'all');
+        $filter     = $request->get('filter', 'diff'); // default: show only differences
 
         if ($count > 0) {
             // Aggregate Esolver per article_code + lot
@@ -83,9 +85,15 @@ class EsolverDetailController extends Controller
             } elseif ($filter === 'only_esolver') {
                 $rows = $rows->filter(fn($r) => $r->only_esolver);
             }
+
+            // Cap display to 2000 rows to avoid memory/rendering issues
+            $totalRows = $rows->count();
+            $rows      = $rows->take(2000)->values();
         }
 
-        return view('admin.esolver-detail.index', compact('count', 'lastUpdate', 'rows', 'filter'));
+        $totalRows = $totalRows ?? 0;
+
+        return view('admin.esolver-detail.index', compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows'));
     }
 
     public function import(Request $request)
