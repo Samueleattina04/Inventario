@@ -19,34 +19,52 @@ class EsolverDetailController extends Controller
         $lastUpdate = EsolverDetail::latest('updated_at')->value('updated_at');
 
         $rows       = collect();
-        $filter     = $request->get('filter', 'diff'); // default: show only differences
+        $filter     = $request->get('filter', 'diff');
+        $magFilter  = $request->get('mag', '');
 
         if ($count > 0) {
-            // Use warehouse 'code' field (e.g. '01', '43') to match Esolver 'mag' column
-            $magMap          = Warehouse::pluck('name', 'code');       // ['01' => 'Magazzino 01 MP...']
-            $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray(); // [1 => '01', 2 => '43']
+            $magMap           = Warehouse::pluck('name', 'code');
+            $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
 
-            // Aggregate Esolver per mag + article_code
+            // Available mag values for filter dropdown
+            $availableMags = EsolverDetail::distinct()->orderBy('mag')->pluck('mag');
+
+            // Default to first mag if none selected
+            if ($magFilter === '' && $availableMags->isNotEmpty()) {
+                $magFilter = $availableMags->first();
+            }
+
+            // Aggregate Esolver per mag + article_code (filtered by mag)
             $esolver = EsolverDetail::selectRaw(
                 'mag, article_code, MAX(description) as description, MAX(um) as um, SUM(quantity) as esolver_qty'
             )
+                ->where('mag', $magFilter)
                 ->groupBy('mag', 'article_code')
                 ->get()
                 ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
 
-            // Aggregate inventory count per warehouse code + article_code
-            $counts = InventoryRecord::where('hidden', false)
+            // Find warehouse_id for this mag
+            $magWarehouseId = array_search($magFilter, $warehouseCodeMap);
+
+            // Aggregate inventory count for this warehouse + article_code
+            $countsQuery = InventoryRecord::where('hidden', false)
                 ->with('warehouse:id,name,code')
                 ->selectRaw('warehouse_id, article_code, MAX(description) as description, SUM(quantity) as count_qty')
-                ->groupBy('warehouse_id', 'article_code')
-                ->get()
+                ->groupBy('warehouse_id', 'article_code');
+
+            if ($magWarehouseId !== false) {
+                $countsQuery->where('warehouse_id', $magWarehouseId);
+            } else {
+                $countsQuery->whereRaw('1=0'); // no warehouse match
+            }
+
+            $counts = $countsQuery->get()
                 ->map(function ($r) use ($warehouseCodeMap) {
                     $r->wh_code = $warehouseCodeMap[$r->warehouse_id] ?? ('W'.$r->warehouse_id);
                     return $r;
                 })
                 ->keyBy(fn($r) => $r->wh_code . '||' . $r->article_code);
 
-            // Merge: all Esolver keys + count-only keys
             $allKeys = $esolver->keys()->merge($counts->keys())->unique();
 
             $rows = $allKeys->map(function ($key) use ($esolver, $counts, $magMap) {
@@ -85,24 +103,24 @@ class EsolverDetailController extends Controller
                     'only_count'   => $esolverQty === null,
                     'only_esolver' => $countQty === null,
                 ];
-            })->sortBy(['mag', 'article_code']);
+            })->sortBy('article_code')->values();
 
             if ($filter === 'diff') {
-                $rows = $rows->filter(fn($r) => $r->is_diff);
+                $rows = $rows->filter(fn($r) => $r->is_diff)->values();
             } elseif ($filter === 'only_count') {
-                $rows = $rows->filter(fn($r) => $r->only_count);
+                $rows = $rows->filter(fn($r) => $r->only_count)->values();
             } elseif ($filter === 'only_esolver') {
-                $rows = $rows->filter(fn($r) => $r->only_esolver);
+                $rows = $rows->filter(fn($r) => $r->only_esolver)->values();
             }
 
-            // Cap display to 2000 rows to avoid memory/rendering issues
             $totalRows = $rows->count();
-            $rows      = $rows->take(2000)->values();
         }
 
-        $totalRows = $totalRows ?? 0;
+        $totalRows     = $totalRows ?? 0;
+        $availableMags = $availableMags ?? collect();
+        $magMap        = $magMap ?? collect();
 
-        return view('admin.esolver-detail.index', compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows'));
+        return view('admin.esolver-detail.index', compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows', 'magFilter', 'availableMags', 'magMap'));
     }
 
     public function import(Request $request)

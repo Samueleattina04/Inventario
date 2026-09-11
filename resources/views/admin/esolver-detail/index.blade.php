@@ -71,19 +71,24 @@
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-2">
         <form method="GET" action="{{ route('admin.esolver-detail.index') }}" class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="text-muted small me-1">Mostra:</span>
+            <input type="hidden" name="filter" value="{{ $filter }}">
+            <label class="text-muted small mb-0">Magazzino:</label>
+            <select name="mag" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                @foreach($availableMags as $mag)
+                    <option value="{{ $mag }}" {{ $magFilter === $mag ? 'selected' : '' }}>
+                        {{ $mag }}{{ isset($magMap[$mag]) ? ' — ' . $magMap[$mag] : '' }}
+                    </option>
+                @endforeach
+            </select>
+            <div class="vr"></div>
+            <span class="text-muted small">Stato:</span>
             @foreach(['all'=>'Tutti','diff'=>'Solo differenze','only_count'=>'Solo in conta','only_esolver'=>'Solo in Esolver'] as $val => $label)
-                <button type="submit" name="filter" value="{{ $val }}"
-                        class="btn btn-sm {{ $filter === $val ? 'btn-dark' : 'btn-outline-secondary' }}">
+                <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $val]) }}"
+                   class="btn btn-sm {{ $filter === $val ? 'btn-dark' : 'btn-outline-secondary' }}">
                     {{ $label }}
-                </button>
+                </a>
             @endforeach
-            <span class="ms-auto text-muted small">
-                {{ $rows->count() }} righe mostrate
-                @if($totalRows > $rows->count())
-                    <span class="text-warning fw-semibold">(su {{ $totalRows }} totali — usa i filtri per restringere)</span>
-                @endif
-            </span>
+            <span class="ms-auto text-muted small">{{ $totalRows }} righe</span>
         </form>
     </div>
 </div>
