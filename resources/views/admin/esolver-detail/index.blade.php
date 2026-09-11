@@ -67,6 +67,17 @@
 </div>
 
 @if($count > 0)
+@php
+    $warehousesWithoutMag = \App\Models\Warehouse::where('active', true)->whereNull('mag_code')->count();
+@endphp
+@if($warehousesWithoutMag > 0)
+<div class="alert alert-warning mb-3">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>{{ $warehousesWithoutMag }} magazzin{{ $warehousesWithoutMag == 1 ? 'o' : 'i' }} senza Codice Mag Esolver.</strong>
+    Le registrazioni di quei magazzini non verranno abbinate alle giacenze Esolver.
+    <a href="{{ route('admin.warehouses.index') }}" class="alert-link ms-1">Configura ora →</a>
+</div>
+@endif
 {{-- Filters --}}
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-2">
@@ -98,7 +109,6 @@
                     <th>Magazzino</th>
                     <th>Articolo</th>
                     <th>Descrizione</th>
-                    <th>Lotto</th>
                     <th class="text-end">Giacenza Esolver</th>
                     <th class="text-end">Conta fisica</th>
                     <th class="text-end">Rettifica export</th>
@@ -111,8 +121,7 @@
                     <td class="small fw-semibold">{{ $row->mag }}</td>
                     <td class="small text-muted" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $row->warehouse }}">{{ $row->warehouse }}</td>
                     <td class="fw-semibold text-nowrap"><code>{{ $row->article_code }}</code></td>
-                    <td class="small text-muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $row->description }}">{{ $row->description }}</td>
-                    <td class="small">{{ $row->lot ?: '—' }}</td>
+                    <td class="small text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $row->description }}">{{ $row->description }}</td>
                     <td class="text-end">
                         @if($row->esolver_qty !== null)
                             {{ number_format($row->esolver_qty, 2, ',', '.') }}

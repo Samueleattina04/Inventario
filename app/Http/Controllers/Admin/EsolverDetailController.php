@@ -30,26 +30,25 @@ class EsolverDetailController extends Controller
             $warehouseMagMap = Warehouse::whereNotNull('mag_code')
                 ->pluck('mag_code', 'id'); // [1 => '01', 2 => '06']
 
-            // Aggregate Esolver per mag + article_code + lot
+            // Aggregate Esolver per mag + article_code (lot shown as info, not used for matching)
             $esolver = EsolverDetail::selectRaw(
-                'mag, article_code, MAX(description) as description, MAX(um) as um,
-                 COALESCE(lot, \'\') as lot_key, SUM(quantity) as esolver_qty'
+                'mag, article_code, MAX(description) as description, MAX(um) as um, SUM(quantity) as esolver_qty'
             )
-                ->groupBy('mag', 'article_code', 'lot')
+                ->groupBy('mag', 'article_code')
                 ->get()
-                ->keyBy(fn($r) => $r->mag . '||' . $r->article_code . '||' . $r->lot_key);
+                ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
 
-            // Aggregate inventory count per mag_code + article_code + lot
+            // Aggregate inventory count per mag_code + article_code
             $counts = InventoryRecord::where('hidden', false)
                 ->with('warehouse:id,name,mag_code')
-                ->selectRaw('warehouse_id, article_code, MAX(description) as description, COALESCE(lot, \'\') as lot_key, SUM(quantity) as count_qty')
-                ->groupBy('warehouse_id', 'article_code', 'lot')
+                ->selectRaw('warehouse_id, article_code, MAX(description) as description, SUM(quantity) as count_qty')
+                ->groupBy('warehouse_id', 'article_code')
                 ->get()
                 ->map(function ($r) use ($warehouseMagMap) {
                     $r->mag_code = $warehouseMagMap[$r->warehouse_id] ?? null;
                     return $r;
                 })
-                ->keyBy(fn($r) => ($r->mag_code ?? 'W'.$r->warehouse_id) . '||' . $r->article_code . '||' . $r->lot_key);
+                ->keyBy(fn($r) => ($r->mag_code ?? 'W'.$r->warehouse_id) . '||' . $r->article_code);
 
             // Merge: all Esolver keys + count-only keys
             $allKeys = $esolver->keys()->merge($counts->keys())->unique();
@@ -58,16 +57,14 @@ class EsolverDetailController extends Controller
                 $e   = $esolver->get($key);
                 $c   = $counts->get($key);
 
-                $parts       = explode('||', $key, 3);
+                $parts       = explode('||', $key, 2);
                 $mag         = $parts[0];
                 $articleCode = $parts[1] ?? '';
-                $lot         = $parts[2] ?? '';
 
-                $esolverQty     = $e ? (float) $e->esolver_qty : null;
-                $countQty       = $c ? (float) $c->count_qty   : null;
-                $warehouseName  = $c?->warehouse?->name ?? ($magMap[$mag] ?? $mag);
+                $esolverQty    = $e ? (float) $e->esolver_qty : null;
+                $countQty      = $c ? (float) $c->count_qty   : null;
+                $warehouseName = $c?->warehouse?->name ?? ($magMap[$mag] ?? $mag);
 
-                // Rettifica rules
                 if ($esolverQty !== null && $countQty === null) {
                     $rettifica = 0;
                 } elseif ($countQty !== null) {
@@ -80,18 +77,17 @@ class EsolverDetailController extends Controller
                        || $esolverQty === null || $countQty === null;
 
                 return (object) [
-                    'mag'           => $mag,
-                    'warehouse'     => $warehouseName,
-                    'article_code'  => $articleCode,
-                    'description'   => $e ? $e->description : ($c ? $c->description : ''),
-                    'lot'           => $lot,
-                    'um'            => $e ? $e->um : '',
-                    'esolver_qty'   => $esolverQty,
-                    'count_qty'     => $countQty,
-                    'rettifica'     => $rettifica,
-                    'is_diff'       => $isDiff,
-                    'only_count'    => $esolverQty === null,
-                    'only_esolver'  => $countQty === null,
+                    'mag'          => $mag,
+                    'warehouse'    => $warehouseName,
+                    'article_code' => $articleCode,
+                    'description'  => $e ? $e->description : ($c ? $c->description : ''),
+                    'um'           => $e ? $e->um : '',
+                    'esolver_qty'  => $esolverQty,
+                    'count_qty'    => $countQty,
+                    'rettifica'    => $rettifica,
+                    'is_diff'      => $isDiff,
+                    'only_count'   => $esolverQty === null,
+                    'only_esolver' => $countQty === null,
                 ];
             })->sortBy(['mag', 'article_code']);
 
@@ -172,62 +168,50 @@ class EsolverDetailController extends Controller
 
         $warehouseMagMap = Warehouse::whereNotNull('mag_code')->pluck('mag_code', 'id');
 
-        // Aggregate Esolver per mag + article + lot
-        $esolver = EsolverDetail::selectRaw(
-            'mag, article_code, MAX(um) as um, COALESCE(lot, \'\') as lot_key, SUM(quantity) as esolver_qty'
-        )
-            ->groupBy('mag', 'article_code', 'lot')
+        // Aggregate Esolver per mag + article
+        $esolver = EsolverDetail::selectRaw('mag, article_code, SUM(quantity) as esolver_qty')
+            ->groupBy('mag', 'article_code')
             ->get()
-            ->keyBy(fn($r) => $r->mag . '||' . $r->article_code . '||' . $r->lot_key);
+            ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
 
-        // Aggregate count per mag + article + lot
+        // Aggregate count per mag + article
         $counts = InventoryRecord::where('hidden', false)
-            ->selectRaw('warehouse_id, article_code, COALESCE(lot, \'\') as lot_key, SUM(quantity) as count_qty')
-            ->groupBy('warehouse_id', 'article_code', 'lot')
+            ->selectRaw('warehouse_id, article_code, SUM(quantity) as count_qty')
+            ->groupBy('warehouse_id', 'article_code')
             ->get()
             ->map(function ($r) use ($warehouseMagMap) {
                 $r->mag_code = $warehouseMagMap[$r->warehouse_id] ?? null;
                 return $r;
             })
-            ->keyBy(fn($r) => ($r->mag_code ?? 'W'.$r->warehouse_id) . '||' . $r->article_code . '||' . $r->lot_key);
+            ->keyBy(fn($r) => ($r->mag_code ?? 'W'.$r->warehouse_id) . '||' . $r->article_code);
 
         $allKeys = $esolver->keys()->merge($counts->keys())->unique()->sort();
 
-        // For export: aggregate rettifica per article+lot (sum across warehouses)
+        // Export: one row per article (sum across all mag)
         $exportMap = [];
         foreach ($allKeys as $key) {
             $e   = $esolver->get($key);
             $c   = $counts->get($key);
 
-            $parts       = explode('||', $key, 3);
+            $parts       = explode('||', $key, 2);
             $articleCode = $parts[1] ?? $parts[0];
-            $lot         = $parts[2] ?? '';
 
-            $exportKey  = $articleCode . '||' . $lot;
             $esolverQty = $e ? (float) $e->esolver_qty : null;
             $countQty   = $c ? (float) $c->count_qty   : null;
 
-            if ($esolverQty !== null && $countQty === null) {
-                $rettifica = 0;
-            } elseif ($countQty !== null) {
-                $rettifica = $countQty;
-            } else {
-                $rettifica = 0;
-            }
+            $rettifica = ($esolverQty !== null && $countQty === null) ? 0 : (float)$countQty;
 
-            if (!isset($exportMap[$exportKey])) {
-                $exportMap[$exportKey] = ['article_code' => $articleCode, 'rettifica' => 0];
+            if (!isset($exportMap[$articleCode])) {
+                $exportMap[$articleCode] = 0;
             }
-            $exportMap[$exportKey]['rettifica'] += $rettifica;
+            $exportMap[$articleCode] += $rettifica;
         }
 
         ksort($exportMap);
 
         $lines = ["Articolo;Variante;Area;Data;Numero;Codice;Collocazione;Quantità UdM 1;Quantità UdM 2;Codice a barre;Unità logistica"];
 
-        foreach ($exportMap as $entry) {
-            $articleCode  = $entry['article_code'];
-            $rettifica    = $entry['rettifica'];
+        foreach ($exportMap as $articleCode => $rettifica) {
             $qtyFormatted = (floor($rettifica) == $rettifica)
                 ? (int) $rettifica
                 : number_format($rettifica, 2, '.', '');
