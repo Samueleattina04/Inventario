@@ -42,7 +42,7 @@ class EsolverDetailController extends Controller
             // Aggregate inventory count per mag_code + article_code + lot
             $counts = InventoryRecord::where('hidden', false)
                 ->with('warehouse:id,name,mag_code')
-                ->selectRaw('warehouse_id, article_code, COALESCE(lot, \'\') as lot_key, SUM(quantity) as count_qty')
+                ->selectRaw('warehouse_id, article_code, MAX(description) as description, COALESCE(lot, \'\') as lot_key, SUM(quantity) as count_qty')
                 ->groupBy('warehouse_id', 'article_code', 'lot')
                 ->get()
                 ->map(function ($r) use ($warehouseMagMap) {
@@ -83,7 +83,7 @@ class EsolverDetailController extends Controller
                     'mag'           => $mag,
                     'warehouse'     => $warehouseName,
                     'article_code'  => $articleCode,
-                    'description'   => $e ? $e->description : '',
+                    'description'   => $e ? $e->description : ($c ? $c->description : ''),
                     'lot'           => $lot,
                     'um'            => $e ? $e->um : '',
                     'esolver_qty'   => $esolverQty,
