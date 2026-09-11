@@ -22,15 +22,11 @@ class EsolverDetailController extends Controller
         $filter     = $request->get('filter', 'diff'); // default: show only differences
 
         if ($count > 0) {
-            // Build mag_code → warehouse_name map
-            $magMap = Warehouse::whereNotNull('mag_code')
-                ->pluck('name', 'mag_code'); // ['01' => 'Magazzino 01 MP...']
+            // Use warehouse 'code' field (e.g. '01', '43') to match Esolver 'mag' column
+            $magMap          = Warehouse::pluck('name', 'code');       // ['01' => 'Magazzino 01 MP...']
+            $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray(); // [1 => '01', 2 => '43']
 
-            // Build warehouse_id → mag_code map (reverse)
-            $warehouseMagMap = Warehouse::whereNotNull('mag_code')
-                ->pluck('mag_code', 'id'); // [1 => '01', 2 => '06']
-
-            // Aggregate Esolver per mag + article_code (lot shown as info, not used for matching)
+            // Aggregate Esolver per mag + article_code
             $esolver = EsolverDetail::selectRaw(
                 'mag, article_code, MAX(description) as description, MAX(um) as um, SUM(quantity) as esolver_qty'
             )
@@ -38,17 +34,17 @@ class EsolverDetailController extends Controller
                 ->get()
                 ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
 
-            // Aggregate inventory count per mag_code + article_code
+            // Aggregate inventory count per warehouse code + article_code
             $counts = InventoryRecord::where('hidden', false)
-                ->with('warehouse:id,name,mag_code')
+                ->with('warehouse:id,name,code')
                 ->selectRaw('warehouse_id, article_code, MAX(description) as description, SUM(quantity) as count_qty')
                 ->groupBy('warehouse_id', 'article_code')
                 ->get()
-                ->map(function ($r) use ($warehouseMagMap) {
-                    $r->mag_code = $warehouseMagMap[$r->warehouse_id] ?? null;
+                ->map(function ($r) use ($warehouseCodeMap) {
+                    $r->wh_code = $warehouseCodeMap[$r->warehouse_id] ?? ('W'.$r->warehouse_id);
                     return $r;
                 })
-                ->keyBy(fn($r) => ($r->mag_code ?? 'W'.$r->warehouse_id) . '||' . $r->article_code);
+                ->keyBy(fn($r) => $r->wh_code . '||' . $r->article_code);
 
             // Merge: all Esolver keys + count-only keys
             $allKeys = $esolver->keys()->merge($counts->keys())->unique();
@@ -166,7 +162,7 @@ class EsolverDetailController extends Controller
             return back()->with('error', 'Nessun dato Esolver APP caricato.');
         }
 
-        $warehouseMagMap = Warehouse::whereNotNull('mag_code')->pluck('mag_code', 'id');
+        $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
 
         // Aggregate Esolver per mag + article
         $esolver = EsolverDetail::selectRaw('mag, article_code, SUM(quantity) as esolver_qty')
@@ -174,16 +170,16 @@ class EsolverDetailController extends Controller
             ->get()
             ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
 
-        // Aggregate count per mag + article
+        // Aggregate count per warehouse code + article
         $counts = InventoryRecord::where('hidden', false)
             ->selectRaw('warehouse_id, article_code, SUM(quantity) as count_qty')
             ->groupBy('warehouse_id', 'article_code')
             ->get()
-            ->map(function ($r) use ($warehouseMagMap) {
-                $r->mag_code = $warehouseMagMap[$r->warehouse_id] ?? null;
+            ->map(function ($r) use ($warehouseCodeMap) {
+                $r->wh_code = $warehouseCodeMap[$r->warehouse_id] ?? ('W'.$r->warehouse_id);
                 return $r;
             })
-            ->keyBy(fn($r) => ($r->mag_code ?? 'W'.$r->warehouse_id) . '||' . $r->article_code);
+            ->keyBy(fn($r) => $r->wh_code . '||' . $r->article_code);
 
         $allKeys = $esolver->keys()->merge($counts->keys())->unique()->sort();
 

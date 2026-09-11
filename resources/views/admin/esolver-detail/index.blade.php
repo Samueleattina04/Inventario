@@ -67,35 +67,6 @@
 </div>
 
 @if($count > 0)
-@php
-    $allWarehouses        = \App\Models\Warehouse::where('active', true)->get();
-    $warehousesWithMag    = $allWarehouses->whereNotNull('mag_code');
-    $warehousesWithoutMag = $allWarehouses->whereNull('mag_code');
-@endphp
-@if($warehousesWithoutMag->count() > 0)
-<div class="alert alert-warning mb-3">
-    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-    <strong>Configurazione incompleta — abbinamento magazzini mancante:</strong>
-    <ul class="mb-1 mt-1">
-        @foreach($warehousesWithoutMag as $wh)
-            <li>
-                <strong>{{ $wh->name }}</strong> — nessun codice Mag Esolver impostato
-                <a href="{{ route('admin.warehouses.edit', $wh) }}" class="ms-1">Configura →</a>
-            </li>
-        @endforeach
-    </ul>
-    Finché non sono configurati, le registrazioni di quei magazzini compaiono come <em>non abbinate</em>.
-</div>
-@endif
-@if($warehousesWithMag->count() > 0)
-<div class="alert alert-info mb-3 py-2">
-    <i class="bi bi-info-circle me-1"></i>
-    Magazzini abbinati:
-    @foreach($warehousesWithMag as $wh)
-        <span class="badge bg-primary ms-1">{{ $wh->mag_code }} → {{ $wh->name }}</span>
-    @endforeach
-</div>
-@endif
 {{-- Filters --}}
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-2">
