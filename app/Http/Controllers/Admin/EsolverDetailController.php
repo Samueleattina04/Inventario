@@ -8,9 +8,97 @@ use App\Models\InventoryRecord;
 use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Font;
 
 class EsolverDetailController extends Controller
 {
+    private function buildRows(string $magFilter, array $warehouseCodeMap, $magMap): \Illuminate\Support\Collection
+    {
+        $allMags = ($magFilter === 'all');
+
+        // --- Esolver ---
+        $esolverQuery = EsolverDetail::selectRaw(
+            'mag, article_code, MAX(description) as description, MAX(um) as um, SUM(quantity) as esolver_qty'
+        )->groupBy('mag', 'article_code');
+        if (!$allMags) {
+            $esolverQuery->where('mag', $magFilter);
+        }
+        $esolver = $esolverQuery->get()
+            ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
+
+        // --- Counts ---
+        $countsQuery = InventoryRecord::where('hidden', false)
+            ->with('warehouse:id,name,code')
+            ->selectRaw('warehouse_id, article_code, MAX(description) as description, SUM(quantity) as count_qty')
+            ->groupBy('warehouse_id', 'article_code');
+
+        if (!$allMags) {
+            $magWarehouseId = array_search($magFilter, $warehouseCodeMap);
+            if ($magWarehouseId !== false) {
+                $countsQuery->where('warehouse_id', $magWarehouseId);
+            } else {
+                $countsQuery->whereRaw('1=0');
+            }
+        }
+
+        $counts = $countsQuery->get()
+            ->map(function ($r) use ($warehouseCodeMap) {
+                $r->wh_code = $warehouseCodeMap[$r->warehouse_id] ?? ('W'.$r->warehouse_id);
+                return $r;
+            })
+            ->keyBy(fn($r) => $r->wh_code . '||' . $r->article_code);
+
+        $allKeys = $esolver->keys()->merge($counts->keys())->unique();
+
+        return $allKeys->map(function ($key) use ($esolver, $counts, $magMap) {
+            $e   = $esolver->get($key);
+            $c   = $counts->get($key);
+
+            $parts       = explode('||', $key, 2);
+            $mag         = $parts[0];
+            $articleCode = $parts[1] ?? '';
+
+            $esolverQty    = $e ? (float) $e->esolver_qty : null;
+            $countQty      = $c ? (float) $c->count_qty   : null;
+            $warehouseName = $c?->warehouse?->name ?? ($magMap[$mag] ?? $mag);
+
+            // Rettifica rules
+            if ($esolverQty !== null && $countQty === null) {
+                $rettifica = 0;          // In Esolver, not in count
+            } elseif ($countQty !== null) {
+                $rettifica = $countQty;  // In count (with or without Esolver match)
+            } else {
+                $rettifica = 0;
+            }
+
+            $isDiff = round((float)$esolverQty, 4) !== round((float)$countQty, 4)
+                   || $esolverQty === null || $countQty === null;
+
+            // Article codes: Esolver code vs OMNI (inventory) code
+            $esolverArticle = $e ? $e->article_code : '';
+            $omniArticle    = $c ? $c->article_code : '';
+
+            return (object) [
+                'mag'            => $mag,
+                'warehouse'      => $warehouseName,
+                'article_code'   => $articleCode,          // matching key
+                'esolver_article'=> $esolverArticle,       // Articolo Esolver
+                'omni_article'   => $omniArticle,          // Articolo OMNI
+                'description'    => $e ? $e->description : ($c ? $c->description : ''),
+                'um'             => $e ? $e->um : '',
+                'esolver_qty'    => $esolverQty,
+                'count_qty'      => $countQty,
+                'rettifica'      => $rettifica,
+                'is_diff'        => $isDiff,
+                'only_count'     => $esolverQty === null,  // Solo OMNI
+                'only_esolver'   => $countQty === null,
+            ];
+        })->sortBy(['mag', 'article_code'])->values();
+    }
+
     public function index(Request $request)
     {
         ini_set('memory_limit', '512M');
@@ -18,92 +106,21 @@ class EsolverDetailController extends Controller
         $count      = EsolverDetail::count();
         $lastUpdate = EsolverDetail::latest('updated_at')->value('updated_at');
 
-        $rows       = collect();
-        $filter     = $request->get('filter', 'diff');
-        $magFilter  = $request->get('mag', '');
+        $rows      = collect();
+        $filter    = $request->get('filter', 'diff');
+        $magFilter = $request->get('mag', '');
+        $totalRows = 0;
 
         if ($count > 0) {
             $magMap           = Warehouse::pluck('name', 'code');
             $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
+            $availableMags    = EsolverDetail::distinct()->orderBy('mag')->pluck('mag');
 
-            // Available mag values for filter dropdown
-            $availableMags = EsolverDetail::distinct()->orderBy('mag')->pluck('mag');
-
-            // Default to first mag if none selected
             if ($magFilter === '' && $availableMags->isNotEmpty()) {
                 $magFilter = $availableMags->first();
             }
 
-            // Aggregate Esolver per mag + article_code (filtered by mag)
-            $esolver = EsolverDetail::selectRaw(
-                'mag, article_code, MAX(description) as description, MAX(um) as um, SUM(quantity) as esolver_qty'
-            )
-                ->where('mag', $magFilter)
-                ->groupBy('mag', 'article_code')
-                ->get()
-                ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
-
-            // Find warehouse_id for this mag
-            $magWarehouseId = array_search($magFilter, $warehouseCodeMap);
-
-            // Aggregate inventory count for this warehouse + article_code
-            $countsQuery = InventoryRecord::where('hidden', false)
-                ->with('warehouse:id,name,code')
-                ->selectRaw('warehouse_id, article_code, MAX(description) as description, SUM(quantity) as count_qty')
-                ->groupBy('warehouse_id', 'article_code');
-
-            if ($magWarehouseId !== false) {
-                $countsQuery->where('warehouse_id', $magWarehouseId);
-            } else {
-                $countsQuery->whereRaw('1=0'); // no warehouse match
-            }
-
-            $counts = $countsQuery->get()
-                ->map(function ($r) use ($warehouseCodeMap) {
-                    $r->wh_code = $warehouseCodeMap[$r->warehouse_id] ?? ('W'.$r->warehouse_id);
-                    return $r;
-                })
-                ->keyBy(fn($r) => $r->wh_code . '||' . $r->article_code);
-
-            $allKeys = $esolver->keys()->merge($counts->keys())->unique();
-
-            $rows = $allKeys->map(function ($key) use ($esolver, $counts, $magMap) {
-                $e   = $esolver->get($key);
-                $c   = $counts->get($key);
-
-                $parts       = explode('||', $key, 2);
-                $mag         = $parts[0];
-                $articleCode = $parts[1] ?? '';
-
-                $esolverQty    = $e ? (float) $e->esolver_qty : null;
-                $countQty      = $c ? (float) $c->count_qty   : null;
-                $warehouseName = $c?->warehouse?->name ?? ($magMap[$mag] ?? $mag);
-
-                if ($esolverQty !== null && $countQty === null) {
-                    $rettifica = 0;
-                } elseif ($countQty !== null) {
-                    $rettifica = $countQty;
-                } else {
-                    $rettifica = 0;
-                }
-
-                $isDiff = round((float)$esolverQty, 4) !== round((float)$countQty, 4)
-                       || $esolverQty === null || $countQty === null;
-
-                return (object) [
-                    'mag'          => $mag,
-                    'warehouse'    => $warehouseName,
-                    'article_code' => $articleCode,
-                    'description'  => $e ? $e->description : ($c ? $c->description : ''),
-                    'um'           => $e ? $e->um : '',
-                    'esolver_qty'  => $esolverQty,
-                    'count_qty'    => $countQty,
-                    'rettifica'    => $rettifica,
-                    'is_diff'      => $isDiff,
-                    'only_count'   => $esolverQty === null,
-                    'only_esolver' => $countQty === null,
-                ];
-            })->sortBy('article_code')->values();
+            $rows = $this->buildRows($magFilter, $warehouseCodeMap, $magMap);
 
             if ($filter === 'diff') {
                 $rows = $rows->filter(fn($r) => $r->is_diff)->values();
@@ -116,11 +133,11 @@ class EsolverDetailController extends Controller
             $totalRows = $rows->count();
         }
 
-        $totalRows     = $totalRows ?? 0;
         $availableMags = $availableMags ?? collect();
         $magMap        = $magMap ?? collect();
 
-        return view('admin.esolver-detail.index', compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows', 'magFilter', 'availableMags', 'magMap'));
+        return view('admin.esolver-detail.index',
+            compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows', 'magFilter', 'availableMags', 'magMap'));
     }
 
     public function import(Request $request)
@@ -143,9 +160,9 @@ class EsolverDetailController extends Controller
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet);
 
-        array_shift($rows); // skip header
+        array_shift($rows);
 
-        // Layout: [0]=Mag [1]=Articolo [2]=Descrizione [3]=Lotto_alfa [4]=Lotto_data [5]=Lotto_num [6]=Collocazione [7]=UdM [8]=Giacenza
+        // Layout: [0]=Mag [1]=Articolo [2]=Descrizione [3]=Lotto_alfa [7]=UdM [8]=Giacenza
         $data = [];
         foreach ($rows as $row) {
             $code = trim((string) ($row[1] ?? ''));
@@ -172,6 +189,7 @@ class EsolverDetailController extends Controller
         return back()->with('success', 'Importati ' . count($data) . ' righe dal file Esolver APP.');
     }
 
+    /** Download .txt for Esolver import */
     public function export()
     {
         ini_set('memory_limit', '512M');
@@ -181,44 +199,21 @@ class EsolverDetailController extends Controller
         }
 
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
+        $magMap           = Warehouse::pluck('name', 'code');
 
-        // Aggregate Esolver per mag + article
-        $esolver = EsolverDetail::selectRaw('mag, article_code, SUM(quantity) as esolver_qty')
-            ->groupBy('mag', 'article_code')
-            ->get()
-            ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
+        $allRows = $this->buildRows('all', $warehouseCodeMap, $magMap);
 
-        // Aggregate count per warehouse code + article
-        $counts = InventoryRecord::where('hidden', false)
-            ->selectRaw('warehouse_id, article_code, SUM(quantity) as count_qty')
-            ->groupBy('warehouse_id', 'article_code')
-            ->get()
-            ->map(function ($r) use ($warehouseCodeMap) {
-                $r->wh_code = $warehouseCodeMap[$r->warehouse_id] ?? ('W'.$r->warehouse_id);
-                return $r;
-            })
-            ->keyBy(fn($r) => $r->wh_code . '||' . $r->article_code);
-
-        $allKeys = $esolver->keys()->merge($counts->keys())->unique()->sort();
-
-        // Export: one row per article (sum across all mag)
+        // Export: aggregate per article across all mags
+        // Key: use Esolver article code if present, otherwise OMNI article code
         $exportMap = [];
-        foreach ($allKeys as $key) {
-            $e   = $esolver->get($key);
-            $c   = $counts->get($key);
+        foreach ($allRows as $row) {
+            $code = $row->esolver_article ?: $row->omni_article;
+            if ($code === '') continue;
 
-            $parts       = explode('||', $key, 2);
-            $articleCode = $parts[1] ?? $parts[0];
-
-            $esolverQty = $e ? (float) $e->esolver_qty : null;
-            $countQty   = $c ? (float) $c->count_qty   : null;
-
-            $rettifica = ($esolverQty !== null && $countQty === null) ? 0 : (float)$countQty;
-
-            if (!isset($exportMap[$articleCode])) {
-                $exportMap[$articleCode] = 0;
+            if (!isset($exportMap[$code])) {
+                $exportMap[$code] = 0;
             }
-            $exportMap[$articleCode] += $rettifica;
+            $exportMap[$code] += $row->rettifica;
         }
 
         ksort($exportMap);
@@ -239,5 +234,99 @@ class EsolverDetailController extends Controller
             'Content-Type'        => 'text/plain; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
+    }
+
+    /** Download Excel of comparison table */
+    public function exportExcel(Request $request)
+    {
+        ini_set('memory_limit', '512M');
+
+        if (EsolverDetail::count() === 0) {
+            return back()->with('error', 'Nessun dato Esolver APP caricato.');
+        }
+
+        $magFilter        = $request->get('mag', 'all');
+        $filter           = $request->get('filter', 'all');
+        $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
+        $magMap           = Warehouse::pluck('name', 'code');
+
+        $rows = $this->buildRows($magFilter, $warehouseCodeMap, $magMap);
+
+        if ($filter === 'diff') {
+            $rows = $rows->filter(fn($r) => $r->is_diff)->values();
+        } elseif ($filter === 'only_count') {
+            $rows = $rows->filter(fn($r) => $r->only_count)->values();
+        } elseif ($filter === 'only_esolver') {
+            $rows = $rows->filter(fn($r) => $r->only_esolver)->values();
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Confronto Rettifica');
+
+        // Headers
+        $headers = ['Mag', 'Magazzino', 'Articolo Esolver', 'Articolo OMNI', 'Descrizione', 'UM',
+                    'Giacenza Esolver', 'Conta Fisica', 'Rettifica Export', 'Stato'];
+        $sheet->fromArray($headers, null, 'A1');
+
+        // Header style
+        $headerStyle = [
+            'font'    => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1a2e4a']],
+        ];
+        $sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
+
+        // Data rows
+        $rowNum = 2;
+        foreach ($rows as $row) {
+            if ($row->only_esolver) {
+                $stato = 'Solo Esolver → 0';
+            } elseif ($row->only_count) {
+                $stato = 'Solo OMNI';
+            } elseif (round((float)$row->esolver_qty, 4) == round((float)$row->count_qty, 4)) {
+                $stato = 'Quadra';
+            } else {
+                $stato = 'Differenza';
+            }
+
+            $sheet->fromArray([
+                $row->mag,
+                $row->warehouse,
+                $row->esolver_article,
+                $row->omni_article,
+                $row->description,
+                $row->um,
+                $row->esolver_qty,
+                $row->count_qty,
+                $row->rettifica,
+                $stato,
+            ], null, "A{$rowNum}");
+
+            // Highlight differences
+            if ($row->is_diff && !$row->only_esolver) {
+                $sheet->getStyle("A{$rowNum}:J{$rowNum}")
+                    ->getFill()->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB('FFF3CD');
+            }
+
+            $rowNum++;
+        }
+
+        // Auto-width for key columns
+        foreach (range('A', 'J') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // Number format for quantity columns
+        $sheet->getStyle("G2:I{$rowNum}")->getNumberFormat()->setFormatCode('#,##0.00');
+
+        $writer   = new Xlsx($spreadsheet);
+        $filename = 'confronto_rettifica_' . now()->format('Ymd_His') . '.xlsx';
+        $tmpPath  = sys_get_temp_dir() . '/' . $filename;
+        $writer->save($tmpPath);
+
+        return response()->download($tmpPath, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend();
     }
 }

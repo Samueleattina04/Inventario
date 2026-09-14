@@ -74,6 +74,7 @@
             <input type="hidden" name="filter" value="{{ $filter }}">
             <label class="text-muted small mb-0">Magazzino:</label>
             <select name="mag" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                <option value="all" {{ $magFilter === 'all' ? 'selected' : '' }}>Tutti i magazzini</option>
                 @foreach($availableMags as $mag)
                     <option value="{{ $mag }}" {{ $magFilter === $mag ? 'selected' : '' }}>
                         {{ $mag }}{{ isset($magMap[$mag]) ? ' — ' . $magMap[$mag] : '' }}
@@ -89,6 +90,10 @@
                 </a>
             @endforeach
             <span class="ms-auto text-muted small">{{ $totalRows }} righe</span>
+            <a href="{{ route('admin.esolver-detail.export-excel', ['mag' => $magFilter, 'filter' => $filter]) }}"
+               class="btn btn-sm btn-outline-success">
+                <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
+            </a>
         </form>
     </div>
 </div>
@@ -101,7 +106,8 @@
                 <tr>
                     <th>Mag</th>
                     <th>Magazzino</th>
-                    <th>Articolo</th>
+                    <th>Articolo Esolver</th>
+                    <th>Articolo OMNI</th>
                     <th>Descrizione</th>
                     <th class="text-end">Giacenza Esolver</th>
                     <th class="text-end">Conta fisica</th>
@@ -114,7 +120,8 @@
                 <tr class="{{ $row->is_diff ? 'table-warning' : '' }}">
                     <td class="small fw-semibold">{{ $row->mag }}</td>
                     <td class="small text-muted" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $row->warehouse }}">{{ $row->warehouse }}</td>
-                    <td class="fw-semibold text-nowrap"><code>{{ $row->article_code }}</code></td>
+                    <td class="fw-semibold text-nowrap"><code>{{ $row->esolver_article ?: '—' }}</code></td>
+                    <td class="fw-semibold text-nowrap"><code>{{ $row->omni_article ?: '—' }}</code></td>
                     <td class="small text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $row->description }}">{{ $row->description }}</td>
                     <td class="text-end">
                         @if($row->esolver_qty !== null)
@@ -138,7 +145,7 @@
                         @if($row->only_esolver)
                             <span class="badge bg-secondary">Solo Esolver → 0</span>
                         @elseif($row->only_count)
-                            <span class="badge bg-primary">Solo conta</span>
+                            <span class="badge bg-primary">Solo OMNI</span>
                         @elseif(round((float)$row->esolver_qty,4) == round((float)$row->count_qty,4))
                             <span class="badge bg-success">Quadra</span>
                         @else
@@ -147,7 +154,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="7" class="text-center text-muted py-4">Nessuna riga per questo filtro.</td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-4">Nessuna riga per questo filtro.</td></tr>
                 @endforelse
             </tbody>
         </table>

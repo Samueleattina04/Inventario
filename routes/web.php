@@ -75,5 +75,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('/esolver-detail',         [EsolverDetailController::class, 'index'])->name('esolver-detail.index');
     Route::post('/esolver-detail/import', [EsolverDetailController::class, 'import'])->name('esolver-detail.import');
-    Route::get('/esolver-detail/export',  [EsolverDetailController::class, 'export'])->name('esolver-detail.export');
+    Route::get('/esolver-detail/export',       [EsolverDetailController::class, 'export'])->name('esolver-detail.export');
+    Route::get('/esolver-detail/export-excel', [EsolverDetailController::class, 'exportExcel'])->name('esolver-detail.export-excel');
 });
