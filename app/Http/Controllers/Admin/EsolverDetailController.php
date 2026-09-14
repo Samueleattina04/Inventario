@@ -10,8 +10,10 @@ use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Font;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 class EsolverDetailController extends Controller
 {
@@ -276,6 +278,9 @@ class EsolverDetailController extends Controller
         ];
         $sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
 
+        // Force article code columns (C, D) to text format
+        $sheet->getStyle('C:D')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+
         // Data rows
         $rowNum = 2;
         foreach ($rows as $row) {
@@ -292,8 +297,8 @@ class EsolverDetailController extends Controller
             $sheet->fromArray([
                 $row->mag,
                 $row->warehouse,
-                $row->esolver_article,
-                $row->omni_article,
+                null,
+                null,
                 $row->description,
                 $row->um,
                 $row->esolver_qty,
@@ -301,6 +306,10 @@ class EsolverDetailController extends Controller
                 $row->rettifica,
                 $stato,
             ], null, "A{$rowNum}");
+
+            // Write article codes explicitly as strings to prevent numeric conversion
+            $sheet->setCellValueExplicit("C{$rowNum}", (string) $row->esolver_article, DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("D{$rowNum}", (string) $row->omni_article, DataType::TYPE_STRING);
 
             // Highlight differences
             if ($row->is_diff && !$row->only_esolver) {
