@@ -244,6 +244,7 @@ class EsolverDetailController extends Controller
     public function exportExcel(Request $request)
     {
         ini_set('memory_limit', '512M');
+        set_time_limit(0);
 
         if (EsolverDetail::count() === 0) {
             return back()->with('error', 'Nessun dato Esolver APP caricato.');
