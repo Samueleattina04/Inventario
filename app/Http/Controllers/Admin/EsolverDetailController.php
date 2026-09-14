@@ -23,19 +23,19 @@ class EsolverDetailController extends Controller
 
         // --- Esolver ---
         $esolverQuery = EsolverDetail::selectRaw(
-            'mag, article_code, MAX(description) as description, MAX(um) as um, SUM(quantity) as esolver_qty'
-        )->groupBy('mag', 'article_code');
+            'mag, article_code, lot, MAX(description) as description, MAX(um) as um, SUM(quantity) as esolver_qty'
+        )->groupBy('mag', 'article_code', 'lot');
         if (!$allMags) {
             $esolverQuery->where('mag', $magFilter);
         }
         $esolver = $esolverQuery->get()
-            ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
+            ->keyBy(fn($r) => $r->mag . '||' . $r->article_code . '||' . ($r->lot ?? ''));
 
         // --- Counts ---
         $countsQuery = InventoryRecord::where('hidden', false)
             ->with('warehouse:id,name,code')
-            ->selectRaw('warehouse_id, article_code, MAX(description) as description, SUM(quantity) as count_qty')
-            ->groupBy('warehouse_id', 'article_code');
+            ->selectRaw('warehouse_id, article_code, lot, MAX(description) as description, SUM(quantity) as count_qty')
+            ->groupBy('warehouse_id', 'article_code', 'lot');
 
         if (!$allMags) {
             $magWarehouseId = array_search($magFilter, $warehouseCodeMap);
@@ -51,7 +51,7 @@ class EsolverDetailController extends Controller
                 $r->wh_code = $warehouseCodeMap[$r->warehouse_id] ?? ('W'.$r->warehouse_id);
                 return $r;
             })
-            ->keyBy(fn($r) => $r->wh_code . '||' . $r->article_code);
+            ->keyBy(fn($r) => $r->wh_code . '||' . $r->article_code . '||' . ($r->lot ?? ''));
 
         $allKeys = $esolver->keys()->merge($counts->keys())->unique();
 
@@ -59,9 +59,10 @@ class EsolverDetailController extends Controller
             $e   = $esolver->get($key);
             $c   = $counts->get($key);
 
-            $parts       = explode('||', $key, 2);
+            $parts       = explode('||', $key, 3);
             $mag         = $parts[0];
             $articleCode = $parts[1] ?? '';
+            $lot         = $parts[2] ?? '';
 
             $esolverQty    = $e ? (float) $e->esolver_qty : null;
             $countQty      = $c ? (float) $c->count_qty   : null;
@@ -86,19 +87,20 @@ class EsolverDetailController extends Controller
             return (object) [
                 'mag'            => $mag,
                 'warehouse'      => $warehouseName,
-                'article_code'   => $articleCode,          // matching key
-                'esolver_article'=> $esolverArticle,       // Articolo Esolver
-                'omni_article'   => $omniArticle,          // Articolo OMNI
+                'article_code'   => $articleCode,
+                'lot'            => $lot,
+                'esolver_article'=> $esolverArticle,
+                'omni_article'   => $omniArticle,
                 'description'    => $e ? $e->description : ($c ? $c->description : ''),
                 'um'             => $e ? $e->um : '',
                 'esolver_qty'    => $esolverQty,
                 'count_qty'      => $countQty,
                 'rettifica'      => $rettifica,
                 'is_diff'        => $isDiff,
-                'only_count'     => $esolverQty === null,  // Solo OMNI
+                'only_count'     => $esolverQty === null,
                 'only_esolver'   => $countQty === null,
             ];
-        })->sortBy(['mag', 'article_code'])->values();
+        })->sortBy(['mag', 'article_code', 'lot'])->values();
     }
 
     public function index(Request $request)
@@ -267,7 +269,7 @@ class EsolverDetailController extends Controller
         $sheet->setTitle('Confronto Rettifica');
 
         // Headers
-        $headers = ['Mag', 'Magazzino', 'Articolo Esolver', 'Articolo OMNI', 'Descrizione', 'UM',
+        $headers = ['Mag', 'Magazzino', 'Articolo Esolver', 'Articolo OMNI', 'Lotto', 'Descrizione', 'UM',
                     'Giacenza Esolver', 'Conta Fisica', 'Rettifica Export', 'Stato'];
         $sheet->fromArray($headers, null, 'A1');
 
@@ -276,10 +278,10 @@ class EsolverDetailController extends Controller
             'font'    => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill'    => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1a2e4a']],
         ];
-        $sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:K1')->applyFromArray($headerStyle);
 
-        // Force article code columns (C, D) to text format
-        $sheet->getStyle('C:D')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+        // Force article code and lot columns (C, D, E) to text format
+        $sheet->getStyle('C:E')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
 
         // Data rows
         $rowNum = 2;
@@ -299,6 +301,7 @@ class EsolverDetailController extends Controller
                 $row->warehouse,
                 null,
                 null,
+                null,
                 $row->description,
                 $row->um,
                 $row->esolver_qty,
@@ -307,13 +310,14 @@ class EsolverDetailController extends Controller
                 $stato,
             ], null, "A{$rowNum}");
 
-            // Write article codes explicitly as strings to prevent numeric conversion
+            // Write text columns explicitly as strings to prevent numeric conversion
             $sheet->setCellValueExplicit("C{$rowNum}", (string) $row->esolver_article, DataType::TYPE_STRING);
             $sheet->setCellValueExplicit("D{$rowNum}", (string) $row->omni_article, DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit("E{$rowNum}", (string) $row->lot, DataType::TYPE_STRING);
 
             // Highlight differences
             if ($row->is_diff && !$row->only_esolver) {
-                $sheet->getStyle("A{$rowNum}:J{$rowNum}")
+                $sheet->getStyle("A{$rowNum}:K{$rowNum}")
                     ->getFill()->setFillType(Fill::FILL_SOLID)
                     ->getStartColor()->setRGB('FFF3CD');
             }
@@ -322,12 +326,12 @@ class EsolverDetailController extends Controller
         }
 
         // Auto-width for key columns
-        foreach (range('A', 'J') as $col) {
+        foreach (range('A', 'K') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
         // Number format for quantity columns
-        $sheet->getStyle("G2:I{$rowNum}")->getNumberFormat()->setFormatCode('#,##0.00');
+        $sheet->getStyle("H2:J{$rowNum}")->getNumberFormat()->setFormatCode('#,##0.00');
 
         $writer   = new Xlsx($spreadsheet);
         $filename = 'confronto_rettifica_' . now()->format('Ymd_His') . '.xlsx';

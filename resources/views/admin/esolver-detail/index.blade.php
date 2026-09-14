@@ -108,6 +108,7 @@
                     <th>Magazzino</th>
                     <th>Articolo Esolver</th>
                     <th>Articolo OMNI</th>
+                    <th>Lotto</th>
                     <th>Descrizione</th>
                     <th class="text-end">Giacenza Esolver</th>
                     <th class="text-end">Conta fisica</th>
@@ -122,6 +123,7 @@
                     <td class="small text-muted" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $row->warehouse }}">{{ $row->warehouse }}</td>
                     <td class="fw-semibold text-nowrap"><code>{{ $row->esolver_article ?: '—' }}</code></td>
                     <td class="fw-semibold text-nowrap"><code>{{ $row->omni_article ?: '—' }}</code></td>
+                    <td class="small text-nowrap"><code>{{ $row->lot ?: '—' }}</code></td>
                     <td class="small text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ $row->description }}">{{ $row->description }}</td>
                     <td class="text-end">
                         @if($row->esolver_qty !== null)
@@ -154,7 +156,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="9" class="text-center text-muted py-4">Nessuna riga per questo filtro.</td></tr>
+                <tr><td colspan="10" class="text-center text-muted py-4">Nessuna riga per questo filtro.</td></tr>
                 @endforelse
             </tbody>
         </table>
