@@ -7,6 +7,7 @@ use App\Models\EsolverDetail;
 use App\Models\InventoryRecord;
 use App\Models\Warehouse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -33,7 +34,6 @@ class EsolverDetailController extends Controller
 
         // --- Counts ---
         $countsQuery = InventoryRecord::where('hidden', false)
-            ->with('warehouse:id,name,code')
             ->selectRaw('warehouse_id, article_code, lot, MAX(description) as description, SUM(quantity) as count_qty')
             ->groupBy('warehouse_id', 'article_code', 'lot');
 
@@ -66,7 +66,7 @@ class EsolverDetailController extends Controller
 
             $esolverQty    = $e ? (float) $e->esolver_qty : null;
             $countQty      = $c ? (float) $c->count_qty   : null;
-            $warehouseName = $c?->warehouse?->name ?? ($magMap[$mag] ?? $mag);
+            $warehouseName = $magMap[$mag] ?? $mag;
 
             // Rettifica rules
             if ($esolverQty !== null && $countQty === null) {
@@ -135,6 +135,15 @@ class EsolverDetailController extends Controller
             }
 
             $totalRows = $rows->count();
+            $perPage   = 200;
+            $page      = max(1, (int) $request->get('page', 1));
+            $rows = new LengthAwarePaginator(
+                $rows->forPage($page, $perPage),
+                $totalRows,
+                $perPage,
+                $page,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
         }
 
         $availableMags = $availableMags ?? collect();

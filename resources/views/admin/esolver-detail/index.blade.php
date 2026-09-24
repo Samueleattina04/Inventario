@@ -100,6 +100,12 @@
 
 {{-- Comparison table --}}
 <div class="card border-0 shadow-sm">
+    @if($rows instanceof \Illuminate\Pagination\LengthAwarePaginator && $rows->hasPages())
+    <div class="card-footer d-flex justify-content-between align-items-center py-2">
+        <span class="text-muted small">Pagina {{ $rows->currentPage() }} di {{ $rows->lastPage() }}</span>
+        {{ $rows->links('pagination::bootstrap-5') }}
+    </div>
+    @endif
     <div class="table-responsive" style="max-height:65vh; overflow-y:auto;">
         <table class="table table-sm table-hover align-middle mb-0">
             <thead class="table-light sticky-top">
