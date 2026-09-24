@@ -44,7 +44,7 @@ class EsolverDetailController extends Controller
 
         // --- Counts: keep per lot for visibility ---
         $countsQuery = InventoryRecord::where('hidden', false)
-            ->selectRaw('warehouse_id, article_code, lot, MAX(description) as description, SUM(quantity) as count_qty, MAX(db_source) as db_source')
+            ->selectRaw('warehouse_id, article_code, lot, MAX(description) as description, SUM(quantity) as count_qty')
             ->groupBy('warehouse_id', 'article_code', 'lot');
 
         if (!$allMags) {
@@ -88,16 +88,7 @@ class EsolverDetailController extends Controller
                 // One row per inventory lot; esolver_qty = total for this article+mag
                 foreach ($cLots as $cRow) {
                     $countQty  = (float) $cRow->count_qty;
-                    $dbSource  = $cRow->db_source ?? '';
-                    $foundInEsolver = str_starts_with($dbSource, 'sqlsrv');
-
-                    // If found in Esolver during scanning but not in APP file → treat esolver_qty as 0 (Differenza)
-                    $effectiveEsolverQty = ($onlyCount && $foundInEsolver) ? 0.0 : $esolverQtyTotal;
-                    $effectiveOnlyCount  = $onlyCount && !$foundInEsolver;
-
-                    $effectiveIsDiff = $effectiveOnlyCount
-                        || $onlyEsolver
-                        || round((float)$effectiveEsolverQty, 4) !== round($countQty, 4);
+                    $rettifica = $countQty; // always use the counted qty as rettifica
 
                     $rows->push((object) [
                         'mag'            => $mag,
@@ -108,11 +99,11 @@ class EsolverDetailController extends Controller
                         'omni_article'   => $cRow->article_code,
                         'description'    => $e ? $e->description : $cRow->description,
                         'um'             => $e ? $e->um : '',
-                        'esolver_qty'    => $effectiveEsolverQty,
+                        'esolver_qty'    => $esolverQtyTotal,
                         'count_qty'      => $countQty,
-                        'rettifica'      => $countQty,
-                        'is_diff'        => $effectiveIsDiff,
-                        'only_count'     => $effectiveOnlyCount,
+                        'rettifica'      => $rettifica,
+                        'is_diff'        => $isDiff,
+                        'only_count'     => $onlyCount,
                         'only_esolver'   => false,
                     ]);
                 }
@@ -346,7 +337,7 @@ class EsolverDetailController extends Controller
             if ($row->only_esolver) {
                 $stato = 'Solo Esolver → 0';
             } elseif ($row->only_count) {
-                $stato = 'Solo Conta';
+                $stato = 'Solo OMNI';
             } elseif (round((float)$row->esolver_qty, 4) == round((float)$row->count_qty, 4)) {
                 $stato = 'Quadra';
             } else {
