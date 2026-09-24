@@ -193,10 +193,11 @@ class EsolverDetailController extends Controller
         return back()->with('success', 'Importati ' . count($data) . ' righe dal file Esolver APP.');
     }
 
-    /** Download .txt for Esolver import */
+    /** Download .csv for Esolver import */
     public function export()
     {
         ini_set('memory_limit', '512M');
+        set_time_limit(0);
 
         if (EsolverDetail::count() === 0) {
             return back()->with('error', 'Nessun dato Esolver APP caricato.');
@@ -207,35 +208,39 @@ class EsolverDetailController extends Controller
 
         $allRows = $this->buildRows('all', $warehouseCodeMap, $magMap);
 
-        // Export: aggregate per article across all mags
-        // Key: use Esolver article code if present, otherwise OMNI article code
-        $exportMap = [];
+        $date = now()->format('d/m/Y');
+
+        $headerLine = "TIPO RECORD;TES: TIPO DOCUMENTO;TES: REGISTRAZIONE: DATA;TES: REGISTRAZIONE: NUMERO              (obbligatorio);RIG: TIPO RIGA                          (obbligatorio);RIG: CODICE OPERAZIONE DI MAGAZZINO;RIG: CODICE ARTICOLO;RIG: QUANTITA' PRINCIPALE;RIG: QUANTITA' ESPRESSA NELLA UM SECONDARIA;RIG: CODICE MAGAZZINO PRINCIPALE;RIG/LTC/CDB: RIFERIMENTO LOTTO: CODICE ALFANUMERICO";
+        $tesLine    = "TES;703;{$date};9999;;;;;;;";
+
+        $lines = [$headerLine, $tesLine];
+
         foreach ($allRows as $row) {
-            $code = $row->esolver_article ?: $row->omni_article;
-            if ($code === '') continue;
+            $articleCode = $row->esolver_article ?: $row->omni_article;
+            if ($articleCode === '') continue;
 
-            if (!isset($exportMap[$code])) {
-                $exportMap[$code] = 0;
-            }
-            $exportMap[$code] += $row->rettifica;
-        }
+            $esolverQty = $row->esolver_qty ?? 0;
+            $countQty   = $row->count_qty ?? 0;
+            $diff       = $countQty - $esolverQty;
 
-        ksort($exportMap);
+            if (round($diff, 4) == 0) continue;
 
-        $lines = ["Articolo;Variante;Area;Data;Numero;Codice;Collocazione;Quantità UdM 1;Quantità UdM 2;Codice a barre;Unità logistica"];
+            $opCode       = $diff > 0 ? 100 : 101;
+            $absQty       = abs($diff);
+            $qtyFormatted = rtrim(rtrim(number_format($absQty, 4, ',', ''), '0'), ',');
+            if ($qtyFormatted === '') $qtyFormatted = '0';
 
-        foreach ($exportMap as $articleCode => $rettifica) {
-            $qtyFormatted = (floor($rettifica) == $rettifica)
-                ? (int) $rettifica
-                : number_format($rettifica, 2, '.', '');
-            $lines[] = "{$articleCode};;;;;;;{$qtyFormatted};;;";
+            $mag = $row->mag;
+            $lot = $row->lot ?? '';
+
+            $lines[] = "RIG;703;{$date};9999;10;{$opCode};{$articleCode};{$qtyFormatted};;{$mag};{$lot}";
         }
 
         $content  = implode("\r\n", $lines);
-        $filename = 'rettifica_' . now()->format('Ymd_His') . '.txt';
+        $filename = 'rettifica_' . now()->format('Ymd_His') . '.csv';
 
         return response($content, 200, [
-            'Content-Type'        => 'text/plain; charset=UTF-8',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
