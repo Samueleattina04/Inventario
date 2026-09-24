@@ -54,7 +54,7 @@
                     @if($lastUpdate)
                         <div class="text-muted small mb-3">Ultimo aggiornamento: {{ $lastUpdate->format('d/m/Y H:i') }}</div>
                     @endif
-                    <a href="{{ route('admin.esolver-detail.export') }}" class="btn btn-success btn-lg">
+                    <a href="{{ route('admin.esolver-detail.export', ['mag' => $magFilter]) }}" class="btn btn-success btn-lg">
                         <i class="bi bi-file-earmark-arrow-down me-1"></i>Scarica file rettifica .csv
                     </a>
                 @else

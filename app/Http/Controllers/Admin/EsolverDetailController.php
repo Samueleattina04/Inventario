@@ -203,7 +203,7 @@ class EsolverDetailController extends Controller
     }
 
     /** Download .csv for Esolver import */
-    public function export()
+    public function export(Request $request)
     {
         ini_set('memory_limit', '512M');
         set_time_limit(0);
@@ -212,10 +212,11 @@ class EsolverDetailController extends Controller
             return back()->with('error', 'Nessun dato Esolver APP caricato.');
         }
 
+        $magFilter        = $request->get('mag', 'all');
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');
 
-        $allRows = $this->buildRows('all', $warehouseCodeMap, $magMap);
+        $allRows = $this->buildRows($magFilter, $warehouseCodeMap, $magMap);
 
         $date = now()->format('d/m/Y');
 
