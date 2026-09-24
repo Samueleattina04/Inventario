@@ -258,10 +258,19 @@ class EsolverDetailController extends Controller
         }
 
         $magFilter        = $request->get('mag', 'all');
+        $filter           = $request->get('filter', 'all');
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');
 
         $allRows = $this->buildRows($magFilter, $warehouseCodeMap, $magMap);
+
+        if ($filter === 'diff') {
+            $allRows = $allRows->filter(fn($r) => $r->is_diff)->values();
+        } elseif ($filter === 'only_count') {
+            $allRows = $allRows->filter(fn($r) => $r->only_count)->values();
+        } elseif ($filter === 'only_esolver') {
+            $allRows = $allRows->filter(fn($r) => $r->only_esolver)->values();
+        }
 
         $date = now()->format('d/m/Y');
 
