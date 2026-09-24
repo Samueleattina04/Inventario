@@ -22,17 +22,27 @@ class EsolverDetailController extends Controller
     {
         $allMags = ($magFilter === 'all');
 
-        // --- Esolver ---
+        // --- Esolver: aggregate by mag+article (lot codes differ from inventory, can't match) ---
         $esolverQuery = EsolverDetail::selectRaw(
-            'mag, article_code, lot, MAX(description) as description, MAX(um) as um, SUM(quantity) as esolver_qty'
-        )->groupBy('mag', 'article_code', 'lot');
+            'mag, article_code, MAX(description) as description, MAX(um) as um, SUM(quantity) as esolver_qty'
+        )->groupBy('mag', 'article_code');
         if (!$allMags) {
             $esolverQuery->where('mag', $magFilter);
         }
-        $esolver = $esolverQuery->get()
-            ->keyBy(fn($r) => $r->mag . '||' . $r->article_code . '||' . ($r->lot ?? ''));
+        $esolverAgg = $esolverQuery->get()
+            ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
 
-        // --- Counts ---
+        // --- Esolver per lot: used only for "Solo Esolver" rows ---
+        $esolverLotsQuery = EsolverDetail::selectRaw(
+            'mag, article_code, lot, SUM(quantity) as esolver_lot_qty'
+        )->groupBy('mag', 'article_code', 'lot');
+        if (!$allMags) {
+            $esolverLotsQuery->where('mag', $magFilter);
+        }
+        $esolverLots = $esolverLotsQuery->get()
+            ->groupBy(fn($r) => $r->mag . '||' . $r->article_code);
+
+        // --- Counts: keep per lot for visibility ---
         $countsQuery = InventoryRecord::where('hidden', false)
             ->selectRaw('warehouse_id, article_code, lot, MAX(description) as description, SUM(quantity) as count_qty')
             ->groupBy('warehouse_id', 'article_code', 'lot');
@@ -46,61 +56,83 @@ class EsolverDetailController extends Controller
             }
         }
 
-        $counts = $countsQuery->get()
+        $countLots = $countsQuery->get()
             ->map(function ($r) use ($warehouseCodeMap) {
                 $r->wh_code = $warehouseCodeMap[$r->warehouse_id] ?? ('W'.$r->warehouse_id);
                 return $r;
             })
-            ->keyBy(fn($r) => $r->wh_code . '||' . $r->article_code . '||' . ($r->lot ?? ''));
+            ->groupBy(fn($r) => $r->wh_code . '||' . $r->article_code);
 
-        $allKeys = $esolver->keys()->merge($counts->keys())->unique();
+        // Match at article+mag level
+        $allArticleKeys = $esolverAgg->keys()->merge($countLots->keys())->unique();
 
-        return $allKeys->map(function ($key) use ($esolver, $counts, $magMap) {
-            $e   = $esolver->get($key);
-            $c   = $counts->get($key);
+        $rows = collect();
 
-            $parts       = explode('||', $key, 3);
-            $mag         = $parts[0];
-            $articleCode = $parts[1] ?? '';
-            $lot         = $parts[2] ?? '';
+        foreach ($allArticleKeys as $articleKey) {
+            $e      = $esolverAgg->get($articleKey);
+            $cLots  = $countLots->get($articleKey);   // collection of inventory lot rows
+            $eLots  = $esolverLots->get($articleKey); // collection of Esolver lot rows
 
-            $esolverQty    = $e ? (float) $e->esolver_qty : null;
-            $countQty      = $c ? (float) $c->count_qty   : null;
+            [$mag, $articleCode] = array_pad(explode('||', $articleKey, 2), 2, '');
             $warehouseName = $magMap[$mag] ?? $mag;
 
-            // Rettifica rules
-            if ($esolverQty !== null && $countQty === null) {
-                $rettifica = 0;          // In Esolver, not in count
-            } elseif ($countQty !== null) {
-                $rettifica = $countQty;  // In count (with or without Esolver match)
-            } else {
-                $rettifica = 0;
+            $esolverQtyTotal = $e ? (float) $e->esolver_qty : null;
+            $countQtyTotal   = $cLots ? (float) $cLots->sum('count_qty') : null;
+
+            $onlyEsolver = $countQtyTotal === null;
+            $onlyCount   = $esolverQtyTotal === null;
+            $isDiff      = $onlyEsolver || $onlyCount
+                        || round($esolverQtyTotal, 4) !== round($countQtyTotal, 4);
+
+            if ($cLots) {
+                // One row per inventory lot; esolver_qty = total for this article+mag
+                foreach ($cLots as $cRow) {
+                    $countQty  = (float) $cRow->count_qty;
+                    $rettifica = $countQty; // always use the counted qty as rettifica
+
+                    $rows->push((object) [
+                        'mag'            => $mag,
+                        'warehouse'      => $warehouseName,
+                        'article_code'   => $articleCode,
+                        'lot'            => $cRow->lot ?? '',
+                        'esolver_article'=> $e ? $e->article_code : '',
+                        'omni_article'   => $cRow->article_code,
+                        'description'    => $e ? $e->description : $cRow->description,
+                        'um'             => $e ? $e->um : '',
+                        'esolver_qty'    => $esolverQtyTotal,
+                        'count_qty'      => $countQty,
+                        'rettifica'      => $rettifica,
+                        'is_diff'        => $isDiff,
+                        'only_count'     => $onlyCount,
+                        'only_esolver'   => false,
+                    ]);
+                }
             }
 
-            $isDiff = round((float)$esolverQty, 4) !== round((float)$countQty, 4)
-                   || $esolverQty === null || $countQty === null;
+            if ($onlyEsolver && $eLots) {
+                // Solo Esolver: one row per Esolver lot
+                foreach ($eLots as $eLotRow) {
+                    $rows->push((object) [
+                        'mag'            => $mag,
+                        'warehouse'      => $warehouseName,
+                        'article_code'   => $articleCode,
+                        'lot'            => $eLotRow->lot ?? '',
+                        'esolver_article'=> $articleCode,
+                        'omni_article'   => '',
+                        'description'    => $e ? $e->description : '',
+                        'um'             => $e ? $e->um : '',
+                        'esolver_qty'    => (float) $eLotRow->esolver_lot_qty,
+                        'count_qty'      => null,
+                        'rettifica'      => 0,
+                        'is_diff'        => true,
+                        'only_count'     => false,
+                        'only_esolver'   => true,
+                    ]);
+                }
+            }
+        }
 
-            // Article codes: Esolver code vs OMNI (inventory) code
-            $esolverArticle = $e ? $e->article_code : '';
-            $omniArticle    = $c ? $c->article_code : '';
-
-            return (object) [
-                'mag'            => $mag,
-                'warehouse'      => $warehouseName,
-                'article_code'   => $articleCode,
-                'lot'            => $lot,
-                'esolver_article'=> $esolverArticle,
-                'omni_article'   => $omniArticle,
-                'description'    => $e ? $e->description : ($c ? $c->description : ''),
-                'um'             => $e ? $e->um : '',
-                'esolver_qty'    => $esolverQty,
-                'count_qty'      => $countQty,
-                'rettifica'      => $rettifica,
-                'is_diff'        => $isDiff,
-                'only_count'     => $esolverQty === null,
-                'only_esolver'   => $countQty === null,
-            ];
-        })->sortBy(['mag', 'article_code', 'lot'])->values();
+        return $rows->sortBy(['mag', 'article_code', 'lot'])->values();
     }
 
     public function index(Request $request)
