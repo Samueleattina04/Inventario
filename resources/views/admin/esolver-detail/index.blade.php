@@ -161,7 +161,7 @@
                         @if($row->only_esolver)
                             <span class="badge bg-secondary">Solo Esolver → 0</span>
                         @elseif($row->only_count)
-                            <span class="badge bg-primary">Solo OMNI</span>
+                            <span class="badge bg-primary">Solo Conta</span>
                         @elseif(round((float)$row->esolver_qty,4) == round((float)$row->count_qty,4))
                             <span class="badge bg-success">Quadra</span>
                         @else
