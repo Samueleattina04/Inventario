@@ -83,7 +83,7 @@
             </select>
             <div class="vr"></div>
             <span class="text-muted small">Stato:</span>
-            @foreach(['all'=>'Tutti','diff'=>'Solo differenze','only_count'=>'Solo in conta','only_esolver'=>'Solo in Esolver'] as $val => $label)
+            @foreach(['all'=>'Tutti','diff'=>'Solo differenze','only_count'=>'Solo conta','only_esolver'=>'Solo in Esolver'] as $val => $label)
                 <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $val]) }}"
                    class="btn btn-sm {{ $filter === $val ? 'btn-dark' : 'btn-outline-secondary' }}">
                     {{ $label }}
@@ -153,7 +153,7 @@
                         @if($row->only_esolver)
                             <span class="badge bg-secondary">Solo Esolver → 0</span>
                         @elseif($row->only_count)
-                            <span class="badge bg-primary">Solo OMNI</span>
+                            <span class="badge bg-primary">Solo Conta</span>
                         @elseif(round((float)$row->esolver_qty,4) == round((float)$row->count_qty,4))
                             <span class="badge bg-success">Quadra</span>
                         @else
