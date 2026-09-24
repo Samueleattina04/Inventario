@@ -90,8 +90,9 @@ class EsolverDetailController extends Controller
                     $countQty       = (float) $cRow->count_qty;
                     $foundInEsolver = str_starts_with($cRow->db_source ?? '', 'sqlsrv');
 
-                    // If found in Esolver during scanning, show article code in Articolo Esolver column too
-                    $esolverArticle = $e ? $e->article_code : ($foundInEsolver ? $cRow->article_code : '');
+                    // SQL → code in Articolo Esolver only; ACCESS/N/T → code in Articolo OMNI only
+                    $esolverArticle = $foundInEsolver ? $cRow->article_code : ($e ? $e->article_code : '');
+                    $omniArticle    = $foundInEsolver ? '' : $cRow->article_code;
 
                     $rows->push((object) [
                         'mag'            => $mag,
@@ -99,7 +100,7 @@ class EsolverDetailController extends Controller
                         'article_code'   => $articleCode,
                         'lot'            => $cRow->lot ?? '',
                         'esolver_article'=> $esolverArticle,
-                        'omni_article'   => $cRow->article_code,
+                        'omni_article'   => $omniArticle,
                         'description'    => $e ? $e->description : $cRow->description,
                         'um'             => $e ? $e->um : '',
                         'esolver_qty'    => $esolverQtyTotal,
