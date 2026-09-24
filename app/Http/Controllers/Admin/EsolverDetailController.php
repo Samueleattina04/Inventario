@@ -145,6 +145,7 @@ class EsolverDetailController extends Controller
         $rows      = collect();
         $filter    = $request->get('filter', 'diff');
         $magFilter = $request->get('mag', '');
+        $search    = trim($request->get('search', ''));
         $totalRows = 0;
 
         if ($count > 0) {
@@ -166,6 +167,14 @@ class EsolverDetailController extends Controller
                 $rows = $rows->filter(fn($r) => $r->only_esolver)->values();
             }
 
+            if ($search !== '') {
+                $needle = strtoupper($search);
+                $rows = $rows->filter(fn($r) =>
+                    str_contains(strtoupper($r->esolver_article), $needle) ||
+                    str_contains(strtoupper($r->omni_article), $needle)
+                )->values();
+            }
+
             $totalRows = $rows->count();
             $perPage   = 200;
             $page      = max(1, (int) $request->get('page', 1));
@@ -182,7 +191,7 @@ class EsolverDetailController extends Controller
         $magMap        = $magMap ?? collect();
 
         return view('admin.esolver-detail.index',
-            compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows', 'magFilter', 'availableMags', 'magMap'));
+            compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows', 'magFilter', 'availableMags', 'magMap', 'search'));
     }
 
     public function import(Request $request)

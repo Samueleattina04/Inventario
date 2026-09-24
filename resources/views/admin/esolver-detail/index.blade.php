@@ -84,13 +84,21 @@
             <div class="vr"></div>
             <span class="text-muted small">Stato:</span>
             @foreach(['all'=>'Tutti','diff'=>'Solo differenze','only_count'=>'Solo in conta','only_esolver'=>'Solo in Esolver'] as $val => $label)
-                <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $val]) }}"
+                <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $val, 'search' => $search ?? '']) }}"
                    class="btn btn-sm {{ $filter === $val ? 'btn-dark' : 'btn-outline-secondary' }}">
                     {{ $label }}
                 </a>
             @endforeach
+            <div class="vr"></div>
+            <div class="input-group input-group-sm" style="width:220px;">
+                <input type="text" name="search" class="form-control" placeholder="Cerca articolo…" value="{{ $search ?? '' }}">
+                <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                @if(!empty($search))
+                    <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $filter]) }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
+                @endif
+            </div>
             <span class="ms-auto text-muted small">{{ $totalRows }} righe</span>
-            <a href="{{ route('admin.esolver-detail.export-excel', ['mag' => $magFilter, 'filter' => $filter]) }}"
+            <a href="{{ route('admin.esolver-detail.export-excel', ['mag' => $magFilter, 'filter' => $filter, 'search' => $search ?? '']) }}"
                class="btn btn-sm btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
             </a>
