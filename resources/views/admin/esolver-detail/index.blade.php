@@ -54,7 +54,7 @@
                     @if($lastUpdate)
                         <div class="text-muted small mb-3">Ultimo aggiornamento: {{ $lastUpdate->format('d/m/Y H:i') }}</div>
                     @endif
-                    <a href="{{ route('admin.esolver-detail.export', ['mag' => $magFilter, 'filter' => $filter, 'search' => $search ?? '']) }}" class="btn btn-success btn-lg">
+                    <a href="{{ route('admin.esolver-detail.export', ['mag' => $magFilter, 'filter' => $filter, 'search' => $search ?? '', 'search_desc' => $searchDesc ?? '']) }}" class="btn btn-success btn-lg">
                         <i class="bi bi-file-earmark-arrow-down me-1"></i>Scarica file rettifica .csv
                     </a>
                 @else
@@ -72,6 +72,7 @@
     <div class="card-body py-2">
         <form method="GET" action="{{ route('admin.esolver-detail.index') }}" class="d-flex align-items-center gap-2 flex-wrap">
             <input type="hidden" name="filter" value="{{ $filter }}">
+            <input type="hidden" name="search_desc" value="{{ $searchDesc ?? '' }}">
             <label class="text-muted small mb-0">Magazzino:</label>
             <select name="mag" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
                 <option value="all" {{ $magFilter === 'all' ? 'selected' : '' }}>Tutti i magazzini</option>
@@ -84,7 +85,7 @@
             <div class="vr"></div>
             <span class="text-muted small">Stato:</span>
             @foreach(['all'=>'Tutti','diff'=>'Solo differenze','only_count'=>'Solo in conta','only_esolver'=>'Solo in Esolver'] as $val => $label)
-                <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $val, 'search' => $search ?? '']) }}"
+                <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $val, 'search' => $search ?? '', 'search_desc' => $searchDesc ?? '']) }}"
                    class="btn btn-sm {{ $filter === $val ? 'btn-dark' : 'btn-outline-secondary' }}">
                     {{ $label }}
                 </a>
@@ -94,11 +95,18 @@
                 <input type="text" name="search" class="form-control" placeholder="Cerca articolo…" value="{{ $search ?? '' }}">
                 <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                 @if(!empty($search))
-                    <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $filter]) }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
+                    <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $filter, 'search_desc' => $searchDesc ?? '']) }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
+                @endif
+            </div>
+            <div class="input-group input-group-sm" style="width:220px;">
+                <input type="text" name="search_desc" class="form-control" placeholder="Cerca descrizione…" value="{{ $searchDesc ?? '' }}">
+                <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                @if(!empty($searchDesc))
+                    <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $filter, 'search' => $search ?? '']) }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
                 @endif
             </div>
             <span class="ms-auto text-muted small">{{ $totalRows }} righe</span>
-            <a href="{{ route('admin.esolver-detail.export-excel', ['mag' => $magFilter, 'filter' => $filter, 'search' => $search ?? '']) }}"
+            <a href="{{ route('admin.esolver-detail.export-excel', ['mag' => $magFilter, 'filter' => $filter, 'search' => $search ?? '', 'search_desc' => $searchDesc ?? '']) }}"
                class="btn btn-sm btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
             </a>

@@ -147,10 +147,11 @@ class EsolverDetailController extends Controller
         $lastUpdate = EsolverDetail::latest('updated_at')->value('updated_at');
 
         $rows      = collect();
-        $filter    = $request->get('filter', 'diff');
-        $magFilter = $request->get('mag', '');
-        $search    = trim($request->get('search', ''));
-        $totalRows = 0;
+        $filter     = $request->get('filter', 'diff');
+        $magFilter  = $request->get('mag', '');
+        $search     = trim($request->get('search', ''));
+        $searchDesc = trim($request->get('search_desc', ''));
+        $totalRows  = 0;
 
         if ($count > 0) {
             $magMap           = Warehouse::pluck('name', 'code');
@@ -179,6 +180,13 @@ class EsolverDetailController extends Controller
                 )->values();
             }
 
+            if ($searchDesc !== '') {
+                $needle = strtoupper($searchDesc);
+                $rows = $rows->filter(fn($r) =>
+                    str_contains(strtoupper($r->description), $needle)
+                )->values();
+            }
+
             $totalRows = $rows->count();
             $perPage   = 200;
             $page      = max(1, (int) $request->get('page', 1));
@@ -195,7 +203,7 @@ class EsolverDetailController extends Controller
         $magMap        = $magMap ?? collect();
 
         return view('admin.esolver-detail.index',
-            compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows', 'magFilter', 'availableMags', 'magMap', 'search'));
+            compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows', 'magFilter', 'availableMags', 'magMap', 'search', 'searchDesc'));
     }
 
     public function import(Request $request)
@@ -276,7 +284,8 @@ class EsolverDetailController extends Controller
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');
 
-        $search  = trim($request->get('search', ''));
+        $search     = trim($request->get('search', ''));
+        $searchDesc = trim($request->get('search_desc', ''));
 
         $allRows = $this->buildRows($magFilter, $warehouseCodeMap, $magMap);
 
@@ -293,6 +302,13 @@ class EsolverDetailController extends Controller
             $allRows = $allRows->filter(fn($r) =>
                 str_contains(strtoupper($r->esolver_article), $needle) ||
                 str_contains(strtoupper($r->omni_article), $needle)
+            )->values();
+        }
+
+        if ($searchDesc !== '') {
+            $needle  = strtoupper($searchDesc);
+            $allRows = $allRows->filter(fn($r) =>
+                str_contains(strtoupper($r->description), $needle)
             )->values();
         }
 
@@ -379,6 +395,7 @@ class EsolverDetailController extends Controller
         $magFilter        = $request->get('mag', 'all');
         $filter           = $request->get('filter', 'all');
         $search           = trim($request->get('search', ''));
+        $searchDesc       = trim($request->get('search_desc', ''));
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');
 
@@ -397,6 +414,13 @@ class EsolverDetailController extends Controller
             $rows   = $rows->filter(fn($r) =>
                 str_contains(strtoupper($r->esolver_article), $needle) ||
                 str_contains(strtoupper($r->omni_article), $needle)
+            )->values();
+        }
+
+        if ($searchDesc !== '') {
+            $needle = strtoupper($searchDesc);
+            $rows   = $rows->filter(fn($r) =>
+                str_contains(strtoupper($r->description), $needle)
             )->values();
         }
 
