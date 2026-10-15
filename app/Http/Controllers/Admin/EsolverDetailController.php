@@ -263,6 +263,8 @@ class EsolverDetailController extends Controller
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');
 
+        $search  = trim($request->get('search', ''));
+
         $allRows = $this->buildRows($magFilter, $warehouseCodeMap, $magMap);
 
         if ($filter === 'diff') {
@@ -271,6 +273,14 @@ class EsolverDetailController extends Controller
             $allRows = $allRows->filter(fn($r) => $r->only_count)->values();
         } elseif ($filter === 'only_esolver') {
             $allRows = $allRows->filter(fn($r) => $r->only_esolver)->values();
+        }
+
+        if ($search !== '') {
+            $needle  = strtoupper($search);
+            $allRows = $allRows->filter(fn($r) =>
+                str_contains(strtoupper($r->esolver_article), $needle) ||
+                str_contains(strtoupper($r->omni_article), $needle)
+            )->values();
         }
 
         // Esolver lots needed to emit per-lot correction rows for "Differenza" articles
