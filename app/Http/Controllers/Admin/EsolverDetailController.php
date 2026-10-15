@@ -365,6 +365,7 @@ class EsolverDetailController extends Controller
 
         $magFilter        = $request->get('mag', 'all');
         $filter           = $request->get('filter', 'all');
+        $search           = trim($request->get('search', ''));
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');
 
@@ -376,6 +377,14 @@ class EsolverDetailController extends Controller
             $rows = $rows->filter(fn($r) => $r->only_count)->values();
         } elseif ($filter === 'only_esolver') {
             $rows = $rows->filter(fn($r) => $r->only_esolver)->values();
+        }
+
+        if ($search !== '') {
+            $needle = strtoupper($search);
+            $rows   = $rows->filter(fn($r) =>
+                str_contains(strtoupper($r->esolver_article), $needle) ||
+                str_contains(strtoupper($r->omni_article), $needle)
+            )->values();
         }
 
         $spreadsheet = new Spreadsheet();
