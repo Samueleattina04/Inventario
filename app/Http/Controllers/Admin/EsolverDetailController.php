@@ -220,19 +220,19 @@ class EsolverDetailController extends Controller
 
         array_shift($rows);
 
-        // Layout: [0]=Mag [1]=Articolo [2]=Descrizione [3]=Lotto_alfa [7]=UdM [8]=Giacenza
+        // Layout: [0]=Mag [1]=SOMMARE [2]=Articolo [3]=Descrizione [4]=Lotto_alfa [8]=UdM [9]=Giacenza
         $data = [];
         foreach ($rows as $row) {
-            $code = trim((string) ($row[1] ?? ''));
+            $code = trim((string) ($row[2] ?? ''));
             if ($code === '') continue;
 
             $data[] = [
                 'mag'          => trim((string) ($row[0] ?? '')),
                 'article_code' => $code,
-                'description'  => trim((string) ($row[2] ?? '')),
-                'lot'          => trim((string) ($row[3] ?? '')) ?: null,
-                'um'           => trim((string) ($row[7] ?? '')),
-                'quantity'     => is_numeric($row[8] ?? null) ? (float) $row[8] : 0,
+                'description'  => trim((string) ($row[3] ?? '')),
+                'lot'          => trim((string) ($row[4] ?? '')) ?: null,
+                'um'           => trim((string) ($row[8] ?? '')),
+                'quantity'     => is_numeric($row[9] ?? null) ? (float) $row[9] : 0,
                 'created_at'   => now(),
                 'updated_at'   => now(),
             ];
