@@ -127,7 +127,7 @@ class EsolverDetailController extends Controller
                         'um'             => $e ? $e->um : '',
                         'esolver_qty'    => (float) $eLotRow->esolver_lot_qty,
                         'count_qty'      => null,
-                        'rettifica'      => 0,
+                        'rettifica'      => -(float) $eLotRow->esolver_lot_qty,
                         'is_diff'        => true,
                         'only_count'     => false,
                         'only_esolver'   => true,
@@ -259,6 +259,7 @@ class EsolverDetailController extends Controller
 
         $magFilter        = $request->get('mag', 'all');
         $filter           = $request->get('filter', 'all');
+        $allMags          = ($magFilter === 'all');
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');
 
@@ -272,32 +273,65 @@ class EsolverDetailController extends Controller
             $allRows = $allRows->filter(fn($r) => $r->only_esolver)->values();
         }
 
+        // Esolver lots needed to emit per-lot correction rows for "Differenza" articles
+        $esolverLotsQuery = EsolverDetail::selectRaw('mag, article_code, lot, SUM(quantity) as esolver_lot_qty')
+            ->groupBy('mag', 'article_code', 'lot');
+        if (!$allMags) {
+            $esolverLotsQuery->where('mag', $magFilter);
+        }
+        $esolverLots = $esolverLotsQuery->get()
+            ->groupBy(fn($r) => $r->mag . '||' . $r->article_code);
+
         $date = now()->format('d/m/Y');
 
         $headerLine = "TIPO RECORD;TES: TIPO DOCUMENTO;TES: REGISTRAZIONE: DATA;TES: REGISTRAZIONE: NUMERO              (obbligatorio);RIG: TIPO RIGA                          (obbligatorio);RIG: CODICE OPERAZIONE DI MAGAZZINO;RIG: CODICE ARTICOLO;RIG: QUANTITA' PRINCIPALE;RIG: QUANTITA' ESPRESSA NELLA UM SECONDARIA;RIG: CODICE MAGAZZINO PRINCIPALE;RIG/LTC/CDB: RIFERIMENTO LOTTO: CODICE ALFANUMERICO";
         $tesLine    = "TES;703;{$date};9999;;;;;;;";
 
         $lines = [$headerLine, $tesLine];
+        $esolverCorrectionEmitted = [];
+
+        $fmt = fn(float $qty): string => ($s = rtrim(rtrim(number_format($qty, 4, ',', ''), '0'), ',')) === '' ? '0' : $s;
 
         foreach ($allRows as $row) {
             $articleCode = $row->esolver_article ?: $row->omni_article;
             if ($articleCode === '') continue;
 
-            $esolverQty = $row->esolver_qty ?? 0;
-            $countQty   = $row->count_qty ?? 0;
-            $diff       = $countQty - $esolverQty;
-
-            if (round($diff, 4) == 0) continue;
-
-            $opCode       = $diff > 0 ? 100 : 101;
-            $absQty       = abs($diff);
-            $qtyFormatted = rtrim(rtrim(number_format($absQty, 4, ',', ''), '0'), ',');
-            if ($qtyFormatted === '') $qtyFormatted = '0';
-
             $mag = $row->mag;
             $lot = $row->lot ?? '';
 
-            $lines[] = "RIG;703;{$date};9999;10;{$opCode};{$articleCode};{$qtyFormatted};;{$mag};{$lot}";
+            if ($row->only_esolver) {
+                // Negative: zero out this Esolver lot
+                $qty = (float) $row->esolver_qty;
+                if (round($qty, 4) == 0) continue;
+                $lines[] = "RIG;703;{$date};9999;10;101;{$articleCode};{$fmt($qty)};;{$mag};{$lot}";
+
+            } elseif ($row->only_count) {
+                // Positive: add this counted lot
+                $qty = (float) $row->count_qty;
+                if (round($qty, 4) == 0) continue;
+                $lines[] = "RIG;703;{$date};9999;10;100;{$articleCode};{$fmt($qty)};;{$mag};{$lot}";
+
+            } else {
+                // Article found in both Esolver and Count (Differenza or Quadra)
+                if (!$row->is_diff) continue; // skip Quadra
+
+                $articleKey = $mag . '||' . $row->article_code;
+
+                // Emit Esolver correction rows once per article (negative: zero out each Esolver lot)
+                if (!isset($esolverCorrectionEmitted[$articleKey])) {
+                    $esolverCorrectionEmitted[$articleKey] = true;
+                    foreach ($esolverLots->get($articleKey, collect()) as $eLotRow) {
+                        $qty = (float) $eLotRow->esolver_lot_qty;
+                        if (round($qty, 4) == 0) continue;
+                        $lines[] = "RIG;703;{$date};9999;10;101;{$eLotRow->article_code};{$fmt($qty)};;{$mag};{$eLotRow->lot}";
+                    }
+                }
+
+                // Positive: add this counted lot
+                $qty = (float) $row->count_qty;
+                if (round($qty, 4) == 0) continue;
+                $lines[] = "RIG;703;{$date};9999;10;100;{$articleCode};{$fmt($qty)};;{$mag};{$lot}";
+            }
         }
 
         $content  = implode("\r\n", $lines);

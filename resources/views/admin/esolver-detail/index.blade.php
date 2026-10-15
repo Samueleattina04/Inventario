@@ -154,7 +154,7 @@
                             <span class="text-muted">—</span>
                         @endif
                     </td>
-                    <td class="text-end fw-bold {{ $row->rettifica == 0 && $row->only_esolver ? 'rettifica-zero' : 'text-primary' }}">
+                    <td class="text-end fw-bold {{ $row->rettifica == 0 ? 'rettifica-zero' : ($row->rettifica < 0 ? 'text-danger' : 'text-primary') }}">
                         {{ number_format($row->rettifica, 2, ',', '.') }}
                     </td>
                     <td>
