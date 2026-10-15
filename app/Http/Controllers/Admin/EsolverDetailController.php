@@ -218,21 +218,34 @@ class EsolverDetailController extends Controller
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet);
 
-        array_shift($rows);
+        $header = array_shift($rows);
 
-        // Layout: [0]=Mag [1]=SOMMARE [2]=Articolo [3]=Descrizione [4]=Lotto_alfa [8]=UdM [9]=Giacenza
+        // Auto-detect layout by header:
+        // Format A (with SOMMARE): Mag, SOMMARE, Articolo, Descrizione, Lotto_alfa, ..., UdM[8], Giacenza[9]
+        // Format B (no SOMMARE):   Mag, Articolo, Descrizione, Lotto_alfa, ..., UdM[7], Giacenza[8]
+        $headerNorm = array_map(fn($h) => strtolower(trim((string) $h)), $header ?? []);
+        $hasSommare = in_array('sommare', $headerNorm);
+
+        if ($hasSommare) {
+            // [0]=Mag [1]=SOMMARE [2]=Articolo [3]=Descrizione [4]=Lotto_alfa [8]=UdM [9]=Giacenza
+            $colArticle = 2; $colDesc = 3; $colLot = 4; $colUm = 8; $colQty = 9;
+        } else {
+            // [0]=Mag [1]=Articolo [2]=Descrizione [3]=Lotto_alfa [7]=UdM [8]=Giacenza
+            $colArticle = 1; $colDesc = 2; $colLot = 3; $colUm = 7; $colQty = 8;
+        }
+
         $data = [];
         foreach ($rows as $row) {
-            $code = trim((string) ($row[2] ?? ''));
+            $code = trim((string) ($row[$colArticle] ?? ''));
             if ($code === '') continue;
 
             $data[] = [
                 'mag'          => trim((string) ($row[0] ?? '')),
                 'article_code' => $code,
-                'description'  => trim((string) ($row[3] ?? '')),
-                'lot'          => trim((string) ($row[4] ?? '')) ?: null,
-                'um'           => trim((string) ($row[8] ?? '')),
-                'quantity'     => is_numeric($row[9] ?? null) ? (float) $row[9] : 0,
+                'description'  => trim((string) ($row[$colDesc] ?? '')),
+                'lot'          => trim((string) ($row[$colLot] ?? '')) ?: null,
+                'um'           => trim((string) ($row[$colUm] ?? '')),
+                'quantity'     => is_numeric($row[$colQty] ?? null) ? (float) $row[$colQty] : 0,
                 'created_at'   => now(),
                 'updated_at'   => now(),
             ];
