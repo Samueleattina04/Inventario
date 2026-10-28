@@ -125,46 +125,35 @@
                 <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
             </a>
 
-            @if($categoryTree->isNotEmpty())
-            @php
-                // level param => [code column, name column, label]
-                $levels = [
-                    'settore'       => ['settore_code',       'settore',       'Settore'],
-                    'linea'         => ['linea_code',         'linea',         'Linea'],
-                    'macrofamiglia' => ['macrofamiglia_code', 'macrofamiglia', 'Macrofamiglia'],
-                    'famiglia'      => ['famiglia_code',      'famiglia',      'Famiglia'],
-                ];
-                $branch       = $categoryTree;
-                $parentChosen = true;
-            @endphp
+            @if(!empty($categoryOptions['settore']))
             <div class="w-100"></div>
             <span class="text-muted small"><i class="bi bi-diagram-3 me-1"></i>Categoria:</span>
-            @foreach($levels as $param => [$codeCol, $nameCol, $label])
-                @php
-                    $options  = $branch->unique($codeCol)->filter(fn($c) => $c->$codeCol !== null);
-                    $selected = $parentChosen ? $categoryFilter[$param] : '';
-                @endphp
-                <select name="{{ $param }}" class="form-select form-select-sm w-auto category-select"
-                        style="max-width:260px;" {{ $parentChosen ? '' : 'disabled' }}>
-                    <option value="">{{ $label }}: tutte</option>
-                    @foreach($options as $opt)
-                        <option value="{{ $opt->$codeCol }}" {{ $selected === (string) $opt->$codeCol ? 'selected' : '' }}>
-                            {{ $opt->$nameCol }}
-                        </option>
-                    @endforeach
-                </select>
-                @php
-                    $parentChosen = $selected !== '';
-                    if ($parentChosen) {
-                        $branch = $branch->where($codeCol, $selected);
-                    }
-                @endphp
+            @foreach(['settore' => 'Settore', 'linea' => 'Linea', 'macrofamiglia' => 'Macrofamiglia', 'famiglia' => 'Famiglia'] as $param => $label)
+                <div class="dropdown category-level" data-param="{{ $param }}" data-label="{{ $label }}">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                            data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <span class="category-summary">{{ $label }}: tutte</span>
+                    </button>
+                    <div class="dropdown-menu p-2 shadow" style="width:340px;">
+                        <input type="text" class="form-control form-control-sm mb-2 category-search" placeholder="Filtra {{ strtolower($label) }}…">
+                        <div class="d-flex gap-1 mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary py-0 category-all">Seleziona tutte</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 category-none">Deseleziona tutte</button>
+                        </div>
+                        <div class="category-list" style="max-height:300px; overflow-y:auto;"></div>
+                    </div>
+                </div>
             @endforeach
-            @if(collect($categoryFilter)->filter()->isNotEmpty())
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Applica</button>
+            @if(collect($categoryFilter)->flatten()->isNotEmpty())
                 <a href="{{ route('admin.esolver-detail.index', array_diff_key($query, $categoryFilter)) }}" class="btn btn-sm btn-outline-danger">
                     <i class="bi bi-x"></i> Rimuovi categoria
                 </a>
             @endif
+            <div class="w-100 small text-muted">
+                Nessuna spunta = tutte. Un livello inferiore restringe solo i rami spuntati sopra
+                (es. Settore A + B, e una Linea di B: resta tutto A e solo quella Linea di B).
+            </div>
             @endif
         </form>
     </div>
@@ -245,12 +234,61 @@
 
 @section('scripts')
 <script>
-document.querySelectorAll('.category-select').forEach((select, i, all) => {
-    select.addEventListener('change', () => {
-        // Lower levels depend on this one: reset them before reloading
-        for (let j = i + 1; j < all.length; j++) all[j].value = '';
-        select.form.submit();
+(() => {
+    const options  = @json($categoryOptions);
+    const selected = @json($categoryFilter);
+    const levels   = [...document.querySelectorAll('.category-level')];
+    if (!levels.length) return;
+
+    const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    // Build the checkbox list of every level once; visibility is recomputed on each change
+    levels.forEach(level => {
+        const param = level.dataset.param;
+        const chosen = new Set(selected[param] || []);
+        level.querySelector('.category-list').innerHTML = (options[param] || []).map(o => `
+            <label class="form-check d-block small mb-1 category-item" data-parent="${esc(o.parent)}" data-name="${esc(o.name).toLowerCase()}">
+                <input class="form-check-input" type="checkbox" name="${param}[]" value="${esc(o.code)}" ${chosen.has(o.code) ? 'checked' : ''}>
+                <span class="form-check-label">${esc(o.name)}</span>
+            </label>`).join('');
     });
-});
+
+    const items   = level => [...level.querySelectorAll('.category-item')];
+    const checked = level => items(level).filter(i => i.querySelector('input').checked);
+
+    // A child is offered only if its parent is ticked (or, with nothing ticked above, if its parent is offered)
+    function refresh() {
+        let allowedParents = null; // null = no restriction (top level)
+        levels.forEach(level => {
+            items(level).forEach(item => {
+                const ok = allowedParents === null || allowedParents.has(item.dataset.parent);
+                item.classList.toggle('d-none', !ok);
+                if (!ok) item.querySelector('input').checked = false;
+            });
+            const visible = items(level).filter(i => !i.classList.contains('d-none'));
+            const ticked  = checked(level);
+            allowedParents = new Set((ticked.length ? ticked : visible).map(i => i.querySelector('input').value));
+            level.querySelector('.category-summary').textContent =
+                level.dataset.label + ': ' + (ticked.length === 0 ? 'tutte' : ticked.length + ' selezionat' + (ticked.length === 1 ? 'a' : 'e'));
+            level.querySelector('button').classList.toggle('btn-outline-secondary', ticked.length === 0);
+            level.querySelector('button').classList.toggle('btn-secondary', ticked.length > 0);
+        });
+    }
+
+    levels.forEach(level => {
+        level.querySelector('.category-list').addEventListener('change', refresh);
+        level.querySelector('.category-search').addEventListener('input', e => {
+            const q = e.target.value.trim().toLowerCase();
+            items(level).forEach(i => i.style.display = (!q || i.dataset.name.includes(q)) ? '' : 'none');
+        });
+        const visibleInputs = () => items(level)
+            .filter(i => !i.classList.contains('d-none') && i.style.display !== 'none')
+            .map(i => i.querySelector('input'));
+        level.querySelector('.category-all').addEventListener('click', () => { visibleInputs().forEach(c => c.checked = true); refresh(); });
+        level.querySelector('.category-none').addEventListener('click', () => { visibleInputs().forEach(c => c.checked = false); refresh(); });
+    });
+
+    refresh();
+})();
 </script>
 @endsection

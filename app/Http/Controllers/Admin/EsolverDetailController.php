@@ -19,7 +19,7 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 class EsolverDetailController extends Controller
 {
-    /** Cascading category filter: query param => article_categories column, from top to bottom level */
+    /** Cascading category filter (multi-select per level): query param => article_categories column, top to bottom */
     private const CATEGORY_LEVELS = [
         'settore'       => 'settore_code',
         'linea'         => 'linea_code',
@@ -188,24 +188,86 @@ class EsolverDetailController extends Controller
         return $rows->values();
     }
 
-    /** Article codes (uppercased, as keys) matching the selected category levels, or null if no level is selected */
+    /** Distinct category paths, one row per famiglia (~300 rows) */
+    private function categoryTree(): \Illuminate\Support\Collection
+    {
+        return ArticleCategory::query()
+            ->whereNotNull('settore_code')
+            ->select('settore_code', 'settore', 'linea_code', 'linea', 'macrofamiglia_code', 'macrofamiglia', 'famiglia_code', 'famiglia')
+            ->distinct()
+            ->orderBy('settore_code')->orderBy('linea_code')->orderBy('macrofamiglia_code')->orderBy('famiglia_code')
+            ->get();
+    }
+
+    /** Selected codes per category level, e.g. ['settore' => ['10'], 'linea' => [], ...] */
+    private function selectedCategories(Request $request): array
+    {
+        $selected = [];
+        foreach (array_keys(self::CATEGORY_LEVELS) as $param) {
+            $selected[$param] = collect((array) $request->get($param, []))
+                ->map(fn($v) => trim((string) $v))
+                ->filter(fn($v) => $v !== '')
+                ->unique()
+                ->values()
+                ->all();
+        }
+        return $selected;
+    }
+
+    /**
+     * Article codes (uppercased, as keys) matching the selected categories, or null if nothing is selected.
+     *
+     * Each level narrows only its own parent: with Settore = {ALIMENTARE, CONSUMO} and one Linea of
+     * CONSUMO selected, all of ALIMENTARE is kept and CONSUMO is limited to that Linea.
+     * Selecting a lower level implicitly selects its ancestors.
+     */
     private function categoryArticleCodes(Request $request): ?array
     {
-        $query    = ArticleCategory::query();
-        $selected = false;
-        foreach (self::CATEGORY_LEVELS as $param => $column) {
-            $value = trim((string) $request->get($param, ''));
-            if ($value !== '') {
-                $query->where($column, $value);
-                $selected = true;
-            }
-        }
-
-        if (!$selected) {
+        $selected = $this->selectedCategories($request);
+        if (collect($selected)->flatten()->isEmpty()) {
             return null;
         }
 
-        return $query->pluck('article_code')
+        $tree    = $this->categoryTree();
+        $columns = array_values(self::CATEGORY_LEVELS);
+        $params  = array_keys(self::CATEGORY_LEVELS);
+
+        // Effective selection per level: explicit codes plus ancestors of deeper selections
+        $effective = array_map(fn($codes) => array_fill_keys($codes, true), array_values($selected));
+        for ($lvl = count($columns) - 1; $lvl > 0; $lvl--) {
+            foreach ($tree as $node) {
+                if (isset($effective[$lvl][$node->{$columns[$lvl]}])) {
+                    $effective[$lvl - 1][$node->{$columns[$lvl - 1]}] = true;
+                }
+            }
+        }
+
+        // Parents (at level-1) that have at least one child selected at level
+        $narrowed = [];
+        for ($lvl = 1; $lvl < count($columns); $lvl++) {
+            $narrowed[$lvl] = [];
+            foreach ($tree as $node) {
+                if (isset($effective[$lvl][$node->{$columns[$lvl]}])) {
+                    $narrowed[$lvl][$node->{$columns[$lvl - 1]}] = true;
+                }
+            }
+        }
+
+        $famiglie = $tree->filter(function ($node) use ($columns, $effective, $narrowed) {
+            if (!empty($effective[0]) && !isset($effective[0][$node->{$columns[0]}])) {
+                return false;
+            }
+            for ($lvl = 1; $lvl < count($columns); $lvl++) {
+                $parent = $node->{$columns[$lvl - 1]};
+                if (isset($narrowed[$lvl][$parent]) && !isset($effective[$lvl][$node->{$columns[$lvl]}])) {
+                    return false;
+                }
+            }
+            return true;
+        })->pluck('famiglia_code')->filter()->unique()->values();
+
+        return ArticleCategory::whereIn('famiglia_code', $famiglie)
+            ->pluck('article_code')
             ->mapWithKeys(fn($code) => [strtoupper($code) => true])
             ->all();
     }
@@ -250,28 +312,32 @@ class EsolverDetailController extends Controller
         $availableMags = $availableMags ?? collect();
         $magMap        = $magMap ?? collect();
 
-        // Category tree for the cascading selector (one row per famiglia, ~300 rows)
-        $categoryCount = ArticleCategory::count();
-        $categoryTree  = ArticleCategory::query()
-            ->whereNotNull('settore_code')
-            ->select('settore_code', 'settore', 'linea_code', 'linea', 'macrofamiglia_code', 'macrofamiglia', 'famiglia_code', 'famiglia')
-            ->distinct()
-            ->orderBy('settore_code')->orderBy('linea_code')->orderBy('macrofamiglia_code')->orderBy('famiglia_code')
-            ->get();
-        $categoryFilter = collect(self::CATEGORY_LEVELS)
-            ->keys()
-            ->mapWithKeys(fn($param) => [$param => trim((string) $request->get($param, ''))])
-            ->all();
+        // Category options for the cascading multi-select: per level, [code, name, parent code]
+        $categoryCount   = ArticleCategory::count();
+        $categoryTree    = $this->categoryTree();
+        $categoryOptions = [];
+        $prevColumn      = null;
+        foreach (self::CATEGORY_LEVELS as $param => $column) {
+            $nameColumn = substr($column, 0, -strlen('_code'));
+            $categoryOptions[$param] = $categoryTree
+                ->unique($column)
+                ->filter(fn($n) => $n->$column !== null)
+                ->map(fn($n) => ['code' => $n->$column, 'name' => $n->$nameColumn, 'parent' => $prevColumn ? $n->$prevColumn : null])
+                ->values()
+                ->all();
+            $prevColumn = $column;
+        }
+        $categoryFilter = $this->selectedCategories($request);
 
         // Current filters, merged into every link so changing one filter keeps the others
         $query = array_merge(
             ['mag' => $magFilter, 'filter' => $filter, 'search' => $search, 'search_desc' => $searchDesc],
-            array_filter($categoryFilter, fn($v) => $v !== '')
+            array_filter($categoryFilter)
         );
 
         return view('admin.esolver-detail.index',
             compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows', 'magFilter', 'availableMags', 'magMap', 'search', 'searchDesc',
-                    'categoryCount', 'categoryTree', 'categoryFilter', 'query'));
+                    'categoryCount', 'categoryOptions', 'categoryFilter', 'query'));
     }
 
     /** Import "Categorie articoli" Excel: Codice, Descrizione, Settore (cod, des), Linea, Macrofamiglia, Famiglia, Microfamiglia, Classe inv */
