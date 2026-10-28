@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ArticleCategory;
 use App\Models\EsolverDetail;
 use App\Models\InventoryRecord;
 use App\Models\Warehouse;
@@ -18,6 +19,14 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 class EsolverDetailController extends Controller
 {
+    /** Cascading category filter: query param => article_categories column, from top to bottom level */
+    private const CATEGORY_LEVELS = [
+        'settore'       => 'settore_code',
+        'linea'         => 'linea_code',
+        'macrofamiglia' => 'macrofamiglia_code',
+        'famiglia'      => 'famiglia_code',
+    ];
+
     private function buildRows(string $magFilter, array $warehouseCodeMap, $magMap): \Illuminate\Support\Collection
     {
         $allMags = ($magFilter === 'all');
@@ -139,6 +148,68 @@ class EsolverDetailController extends Controller
         return $rows->sortBy(['mag', 'article_code', 'lot'])->values();
     }
 
+    /** Status, article/description search and category filters shared by the page and both exports */
+    private function filterRows(\Illuminate\Support\Collection $rows, Request $request, string $filter): \Illuminate\Support\Collection
+    {
+        if ($filter === 'diff') {
+            $rows = $rows->filter(fn($r) => $r->is_diff);
+        } elseif ($filter === 'only_count') {
+            $rows = $rows->filter(fn($r) => $r->only_count);
+        } elseif ($filter === 'only_esolver') {
+            $rows = $rows->filter(fn($r) => $r->only_esolver);
+        }
+
+        $search = trim($request->get('search', ''));
+        if ($search !== '') {
+            $needle = strtoupper($search);
+            $rows = $rows->filter(fn($r) =>
+                str_contains(strtoupper($r->esolver_article), $needle) ||
+                str_contains(strtoupper($r->omni_article), $needle)
+            );
+        }
+
+        $searchDesc = trim($request->get('search_desc', ''));
+        if ($searchDesc !== '') {
+            $needle = strtoupper($searchDesc);
+            $rows = $rows->filter(fn($r) =>
+                str_contains(strtoupper($r->description), $needle)
+            );
+        }
+
+        $categoryCodes = $this->categoryArticleCodes($request);
+        if ($categoryCodes !== null) {
+            $rows = $rows->filter(fn($r) =>
+                isset($categoryCodes[strtoupper($r->article_code)]) ||
+                isset($categoryCodes[strtoupper($r->esolver_article)]) ||
+                isset($categoryCodes[strtoupper($r->omni_article)])
+            );
+        }
+
+        return $rows->values();
+    }
+
+    /** Article codes (uppercased, as keys) matching the selected category levels, or null if no level is selected */
+    private function categoryArticleCodes(Request $request): ?array
+    {
+        $query    = ArticleCategory::query();
+        $selected = false;
+        foreach (self::CATEGORY_LEVELS as $param => $column) {
+            $value = trim((string) $request->get($param, ''));
+            if ($value !== '') {
+                $query->where($column, $value);
+                $selected = true;
+            }
+        }
+
+        if (!$selected) {
+            return null;
+        }
+
+        return $query->pluck('article_code')
+            ->mapWithKeys(fn($code) => [strtoupper($code) => true])
+            ->all();
+    }
+
     public function index(Request $request)
     {
         ini_set('memory_limit', '512M');
@@ -162,30 +233,7 @@ class EsolverDetailController extends Controller
                 $magFilter = $availableMags->first();
             }
 
-            $rows = $this->buildRows($magFilter, $warehouseCodeMap, $magMap);
-
-            if ($filter === 'diff') {
-                $rows = $rows->filter(fn($r) => $r->is_diff)->values();
-            } elseif ($filter === 'only_count') {
-                $rows = $rows->filter(fn($r) => $r->only_count)->values();
-            } elseif ($filter === 'only_esolver') {
-                $rows = $rows->filter(fn($r) => $r->only_esolver)->values();
-            }
-
-            if ($search !== '') {
-                $needle = strtoupper($search);
-                $rows = $rows->filter(fn($r) =>
-                    str_contains(strtoupper($r->esolver_article), $needle) ||
-                    str_contains(strtoupper($r->omni_article), $needle)
-                )->values();
-            }
-
-            if ($searchDesc !== '') {
-                $needle = strtoupper($searchDesc);
-                $rows = $rows->filter(fn($r) =>
-                    str_contains(strtoupper($r->description), $needle)
-                )->values();
-            }
+            $rows = $this->filterRows($this->buildRows($magFilter, $warehouseCodeMap, $magMap), $request, $filter);
 
             $totalRows = $rows->count();
             $perPage   = 200;
@@ -202,8 +250,86 @@ class EsolverDetailController extends Controller
         $availableMags = $availableMags ?? collect();
         $magMap        = $magMap ?? collect();
 
+        // Category tree for the cascading selector (one row per famiglia, ~300 rows)
+        $categoryCount = ArticleCategory::count();
+        $categoryTree  = ArticleCategory::query()
+            ->whereNotNull('settore_code')
+            ->select('settore_code', 'settore', 'linea_code', 'linea', 'macrofamiglia_code', 'macrofamiglia', 'famiglia_code', 'famiglia')
+            ->distinct()
+            ->orderBy('settore_code')->orderBy('linea_code')->orderBy('macrofamiglia_code')->orderBy('famiglia_code')
+            ->get();
+        $categoryFilter = collect(self::CATEGORY_LEVELS)
+            ->keys()
+            ->mapWithKeys(fn($param) => [$param => trim((string) $request->get($param, ''))])
+            ->all();
+
+        // Current filters, merged into every link so changing one filter keeps the others
+        $query = array_merge(
+            ['mag' => $magFilter, 'filter' => $filter, 'search' => $search, 'search_desc' => $searchDesc],
+            array_filter($categoryFilter, fn($v) => $v !== '')
+        );
+
         return view('admin.esolver-detail.index',
-            compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows', 'magFilter', 'availableMags', 'magMap', 'search', 'searchDesc'));
+            compact('count', 'lastUpdate', 'rows', 'filter', 'totalRows', 'magFilter', 'availableMags', 'magMap', 'search', 'searchDesc',
+                    'categoryCount', 'categoryTree', 'categoryFilter', 'query'));
+    }
+
+    /** Import "Categorie articoli" Excel: Codice, Descrizione, Settore (cod, des), Linea, Macrofamiglia, Famiglia, Microfamiglia, Classe inv */
+    public function importCategories(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls',
+        ], [
+            'file.required' => 'Seleziona un file Excel.',
+            'file.mimes'    => 'Il file deve essere in formato Excel (.xlsx o .xls).',
+        ]);
+
+        ini_set('memory_limit', '512M');
+
+        $path   = $request->file('file')->getRealPath();
+        $reader = IOFactory::createReaderForFile($path);
+        $reader->setReadDataOnly(true);
+        $spreadsheet = $reader->load($path);
+        $rows        = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
+
+        array_shift($rows);
+
+        // [0]=Codice [1]=Descrizione [2-3]=Settore [4-5]=Linea [6-7]=Macrofamiglia [8-9]=Famiglia [10]=Microfamiglia [11]=Classe inv
+        $cell = function (array $row, int $i): ?string {
+            $v = trim(str_replace("\u{00A0}", ' ', (string) ($row[$i] ?? '')));
+            return ($v === '' || $v === '0') ? null : $v;
+        };
+
+        $data = [];
+        foreach ($rows as $row) {
+            $code = $cell($row, 0);
+            if ($code === null) continue;
+
+            $data[$code] = [
+                'article_code'       => $code,
+                'description'        => $cell($row, 1),
+                'settore_code'       => $cell($row, 2),
+                'settore'            => $cell($row, 3),
+                'linea_code'         => $cell($row, 4),
+                'linea'              => $cell($row, 5),
+                'macrofamiglia_code' => $cell($row, 6),
+                'macrofamiglia'      => $cell($row, 7),
+                'famiglia_code'      => $cell($row, 8),
+                'famiglia'           => $cell($row, 9),
+                'classe_inv'         => $cell($row, 11),
+                'created_at'         => now(),
+                'updated_at'         => now(),
+            ];
+        }
+
+        ArticleCategory::truncate();
+        foreach (array_chunk(array_values($data), 500) as $chunk) {
+            ArticleCategory::insert($chunk);
+        }
+
+        return back()->with('success', 'Importate ' . count($data) . ' categorie articoli.');
     }
 
     public function import(Request $request)
@@ -284,33 +410,7 @@ class EsolverDetailController extends Controller
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');
 
-        $search     = trim($request->get('search', ''));
-        $searchDesc = trim($request->get('search_desc', ''));
-
-        $allRows = $this->buildRows($magFilter, $warehouseCodeMap, $magMap);
-
-        if ($filter === 'diff') {
-            $allRows = $allRows->filter(fn($r) => $r->is_diff)->values();
-        } elseif ($filter === 'only_count') {
-            $allRows = $allRows->filter(fn($r) => $r->only_count)->values();
-        } elseif ($filter === 'only_esolver') {
-            $allRows = $allRows->filter(fn($r) => $r->only_esolver)->values();
-        }
-
-        if ($search !== '') {
-            $needle  = strtoupper($search);
-            $allRows = $allRows->filter(fn($r) =>
-                str_contains(strtoupper($r->esolver_article), $needle) ||
-                str_contains(strtoupper($r->omni_article), $needle)
-            )->values();
-        }
-
-        if ($searchDesc !== '') {
-            $needle  = strtoupper($searchDesc);
-            $allRows = $allRows->filter(fn($r) =>
-                str_contains(strtoupper($r->description), $needle)
-            )->values();
-        }
+        $allRows = $this->filterRows($this->buildRows($magFilter, $warehouseCodeMap, $magMap), $request, $filter);
 
         // Esolver lots needed to emit per-lot correction rows for "Differenza" articles
         $esolverLotsQuery = EsolverDetail::selectRaw('mag, article_code, lot, SUM(quantity) as esolver_lot_qty')
@@ -394,35 +494,10 @@ class EsolverDetailController extends Controller
 
         $magFilter        = $request->get('mag', 'all');
         $filter           = $request->get('filter', 'all');
-        $search           = trim($request->get('search', ''));
-        $searchDesc       = trim($request->get('search_desc', ''));
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');
 
-        $rows = $this->buildRows($magFilter, $warehouseCodeMap, $magMap);
-
-        if ($filter === 'diff') {
-            $rows = $rows->filter(fn($r) => $r->is_diff)->values();
-        } elseif ($filter === 'only_count') {
-            $rows = $rows->filter(fn($r) => $r->only_count)->values();
-        } elseif ($filter === 'only_esolver') {
-            $rows = $rows->filter(fn($r) => $r->only_esolver)->values();
-        }
-
-        if ($search !== '') {
-            $needle = strtoupper($search);
-            $rows   = $rows->filter(fn($r) =>
-                str_contains(strtoupper($r->esolver_article), $needle) ||
-                str_contains(strtoupper($r->omni_article), $needle)
-            )->values();
-        }
-
-        if ($searchDesc !== '') {
-            $needle = strtoupper($searchDesc);
-            $rows   = $rows->filter(fn($r) =>
-                str_contains(strtoupper($r->description), $needle)
-            )->values();
-        }
+        $rows = $this->filterRows($this->buildRows($magFilter, $warehouseCodeMap, $magMap), $request, $filter);
 
         $spreadsheet = new Spreadsheet();
         $sheet       = $spreadsheet->getActiveSheet();

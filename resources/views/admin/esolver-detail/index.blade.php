@@ -37,6 +37,21 @@
                         <i class="bi bi-cloud-upload me-1"></i>Importa
                     </button>
                 </form>
+                <hr>
+                <form method="POST" action="{{ route('admin.esolver-detail.import-categories') }}" enctype="multipart/form-data">
+                    @csrf
+                    <label class="form-label small fw-semibold mb-1">
+                        <i class="bi bi-diagram-3 me-1"></i>Categorie articoli (.xlsx)
+                        @if($categoryCount > 0)
+                            <span class="badge bg-success ms-1">{{ number_format($categoryCount, 0, ',', '.') }} articoli</span>
+                        @endif
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+                        <button type="submit" class="btn btn-outline-primary"><i class="bi bi-cloud-upload me-1"></i>Importa</button>
+                    </div>
+                    <div class="form-text">Colonne: Codice, Descrizione, Settore, Linea, Macrofamiglia, Famiglia, Classe inv</div>
+                </form>
             </div>
         </div>
     </div>
@@ -54,7 +69,7 @@
                     @if($lastUpdate)
                         <div class="text-muted small mb-3">Ultimo aggiornamento: {{ $lastUpdate->format('d/m/Y H:i') }}</div>
                     @endif
-                    <a href="{{ route('admin.esolver-detail.export', ['mag' => $magFilter, 'filter' => $filter, 'search' => $search ?? '', 'search_desc' => $searchDesc ?? '']) }}" class="btn btn-success btn-lg">
+                    <a href="{{ route('admin.esolver-detail.export', $query) }}" class="btn btn-success btn-lg">
                         <i class="bi bi-file-earmark-arrow-down me-1"></i>Scarica file rettifica .csv
                     </a>
                 @else
@@ -72,7 +87,6 @@
     <div class="card-body py-2">
         <form method="GET" action="{{ route('admin.esolver-detail.index') }}" class="d-flex align-items-center gap-2 flex-wrap">
             <input type="hidden" name="filter" value="{{ $filter }}">
-            <input type="hidden" name="search_desc" value="{{ $searchDesc ?? '' }}">
             <label class="text-muted small mb-0">Magazzino:</label>
             <select name="mag" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
                 <option value="all" {{ $magFilter === 'all' ? 'selected' : '' }}>Tutti i magazzini</option>
@@ -85,7 +99,7 @@
             <div class="vr"></div>
             <span class="text-muted small">Stato:</span>
             @foreach(['all'=>'Tutti','diff'=>'Solo differenze','only_count'=>'Solo in conta','only_esolver'=>'Solo in Esolver'] as $val => $label)
-                <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $val, 'search' => $search ?? '', 'search_desc' => $searchDesc ?? '']) }}"
+                <a href="{{ route('admin.esolver-detail.index', array_merge($query, ['filter' => $val])) }}"
                    class="btn btn-sm {{ $filter === $val ? 'btn-dark' : 'btn-outline-secondary' }}">
                     {{ $label }}
                 </a>
@@ -95,21 +109,63 @@
                 <input type="text" name="search" class="form-control" placeholder="Cerca articolo…" value="{{ $search ?? '' }}">
                 <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                 @if(!empty($search))
-                    <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $filter, 'search_desc' => $searchDesc ?? '']) }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
+                    <a href="{{ route('admin.esolver-detail.index', array_diff_key($query, ['search' => 1])) }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
                 @endif
             </div>
             <div class="input-group input-group-sm" style="width:220px;">
                 <input type="text" name="search_desc" class="form-control" placeholder="Cerca descrizione…" value="{{ $searchDesc ?? '' }}">
                 <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                 @if(!empty($searchDesc))
-                    <a href="{{ route('admin.esolver-detail.index', ['mag' => $magFilter, 'filter' => $filter, 'search' => $search ?? '']) }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
+                    <a href="{{ route('admin.esolver-detail.index', array_diff_key($query, ['search_desc' => 1])) }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>
                 @endif
             </div>
             <span class="ms-auto text-muted small">{{ $totalRows }} righe</span>
-            <a href="{{ route('admin.esolver-detail.export-excel', ['mag' => $magFilter, 'filter' => $filter, 'search' => $search ?? '', 'search_desc' => $searchDesc ?? '']) }}"
+            <a href="{{ route('admin.esolver-detail.export-excel', $query) }}"
                class="btn btn-sm btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
             </a>
+
+            @if($categoryTree->isNotEmpty())
+            @php
+                // level param => [code column, name column, label]
+                $levels = [
+                    'settore'       => ['settore_code',       'settore',       'Settore'],
+                    'linea'         => ['linea_code',         'linea',         'Linea'],
+                    'macrofamiglia' => ['macrofamiglia_code', 'macrofamiglia', 'Macrofamiglia'],
+                    'famiglia'      => ['famiglia_code',      'famiglia',      'Famiglia'],
+                ];
+                $branch       = $categoryTree;
+                $parentChosen = true;
+            @endphp
+            <div class="w-100"></div>
+            <span class="text-muted small"><i class="bi bi-diagram-3 me-1"></i>Categoria:</span>
+            @foreach($levels as $param => [$codeCol, $nameCol, $label])
+                @php
+                    $options  = $branch->unique($codeCol)->filter(fn($c) => $c->$codeCol !== null);
+                    $selected = $parentChosen ? $categoryFilter[$param] : '';
+                @endphp
+                <select name="{{ $param }}" class="form-select form-select-sm w-auto category-select"
+                        style="max-width:260px;" {{ $parentChosen ? '' : 'disabled' }}>
+                    <option value="">{{ $label }}: tutte</option>
+                    @foreach($options as $opt)
+                        <option value="{{ $opt->$codeCol }}" {{ $selected === (string) $opt->$codeCol ? 'selected' : '' }}>
+                            {{ $opt->$nameCol }}
+                        </option>
+                    @endforeach
+                </select>
+                @php
+                    $parentChosen = $selected !== '';
+                    if ($parentChosen) {
+                        $branch = $branch->where($codeCol, $selected);
+                    }
+                @endphp
+            @endforeach
+            @if(collect($categoryFilter)->filter()->isNotEmpty())
+                <a href="{{ route('admin.esolver-detail.index', array_diff_key($query, $categoryFilter)) }}" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-x"></i> Rimuovi categoria
+                </a>
+            @endif
+            @endif
         </form>
     </div>
 </div>
@@ -185,4 +241,16 @@
     </div>
 </div>
 @endif
+@endsection
+
+@section('scripts')
+<script>
+document.querySelectorAll('.category-select').forEach((select, i, all) => {
+    select.addEventListener('change', () => {
+        // Lower levels depend on this one: reset them before reloading
+        for (let j = i + 1; j < all.length; j++) all[j].value = '';
+        select.form.submit();
+    });
+});
+</script>
 @endsection
