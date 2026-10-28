@@ -82,8 +82,8 @@
 </div>
 
 @if($count > 0)
-{{-- Filters (above the table's sticky header so the category dropdowns are not covered) --}}
-<div class="card border-0 shadow-sm mb-3 position-relative" style="z-index:1030;">
+{{-- Filters --}}
+<div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-2">
         <form method="GET" action="{{ route('admin.esolver-detail.index') }}" class="d-flex align-items-center gap-2 flex-wrap">
             <input type="hidden" name="filter" value="{{ $filter }}">
@@ -126,33 +126,41 @@
             </a>
 
             @if(!empty($categoryOptions['settore']))
+            @php $categoryActive = collect($categoryFilter)->flatten()->isNotEmpty(); @endphp
             <div class="w-100"></div>
             <span class="text-muted small"><i class="bi bi-diagram-3 me-1"></i>Categoria:</span>
-            @foreach(['settore' => 'Settore', 'linea' => 'Linea', 'macrofamiglia' => 'Macrofamiglia', 'famiglia' => 'Famiglia'] as $param => $label)
-                <div class="dropdown category-level" data-param="{{ $param }}" data-label="{{ $label }}">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
-                            data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                        <span class="category-summary">{{ $label }}: tutte</span>
-                    </button>
-                    <div class="dropdown-menu p-2 shadow" style="width:340px;">
-                        <input type="text" class="form-control form-control-sm mb-2 category-search" placeholder="Filtra {{ strtolower($label) }}…">
-                        <div class="d-flex gap-1 mb-2">
-                            <button type="button" class="btn btn-sm btn-outline-primary py-0 category-all">Seleziona tutte</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 category-none">Deseleziona tutte</button>
-                        </div>
-                        <div class="category-list" style="max-height:300px; overflow-y:auto;"></div>
-                    </div>
-                </div>
-            @endforeach
+            <button type="button" id="categoryToggle" class="btn btn-sm {{ $categoryActive ? 'btn-secondary' : 'btn-outline-secondary' }}"
+                    data-bs-toggle="collapse" data-bs-target="#categoryPanel" aria-expanded="false">
+                <i class="bi bi-chevron-down me-1"></i><span id="categorySummary">tutte</span>
+            </button>
             <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Applica</button>
-            @if(collect($categoryFilter)->flatten()->isNotEmpty())
+            @if($categoryActive)
                 <a href="{{ route('admin.esolver-detail.index', array_diff_key($query, $categoryFilter)) }}" class="btn btn-sm btn-outline-danger">
                     <i class="bi bi-x"></i> Rimuovi categoria
                 </a>
             @endif
-            <div class="w-100 small text-muted">
-                Nessuna spunta = tutte. Un livello inferiore restringe solo i rami spuntati sopra
-                (es. Settore A + B, e una Linea di B: resta tutto A e solo quella Linea di B).
+
+            {{-- Inline panel (not a floating dropdown) so it never overlaps the table --}}
+            <div class="collapse w-100" id="categoryPanel">
+                <div class="row g-2 pt-2">
+                    @foreach(['settore' => 'Settore', 'linea' => 'Linea', 'macrofamiglia' => 'Macrofamiglia', 'famiglia' => 'Famiglia'] as $param => $label)
+                        <div class="col-12 col-md-6 col-xl-3 category-level" data-param="{{ $param }}" data-label="{{ $label }}">
+                            <div class="border rounded p-2 h-100 bg-light">
+                                <div class="fw-semibold small mb-1 category-summary">{{ $label }}: tutte</div>
+                                <input type="text" class="form-control form-control-sm mb-1 category-search" placeholder="Filtra {{ strtolower($label) }}…">
+                                <div class="d-flex gap-1 mb-1">
+                                    <button type="button" class="btn btn-sm btn-outline-primary py-0 category-all">Tutte</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 category-none">Nessuna</button>
+                                </div>
+                                <div class="category-list bg-white border rounded px-2 py-1" style="height:220px; overflow-y:auto;"></div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="small text-muted mt-1">
+                    Nessuna spunta = tutte. Un livello inferiore restringe solo i rami spuntati sopra
+                    (es. Settore A + B, e una Linea di B: resta tutto A e solo quella Linea di B). Premi <strong>Applica</strong> per aggiornare.
+                </div>
             </div>
             @endif
         </form>
@@ -259,6 +267,7 @@
     // A child is offered only if its parent is ticked (or, with nothing ticked above, if its parent is offered)
     function refresh() {
         let allowedParents = null; // null = no restriction (top level)
+        const parts = [];
         levels.forEach(level => {
             items(level).forEach(item => {
                 const ok = allowedParents === null || allowedParents.has(item.dataset.parent);
@@ -268,11 +277,11 @@
             const visible = items(level).filter(i => !i.classList.contains('d-none'));
             const ticked  = checked(level);
             allowedParents = new Set((ticked.length ? ticked : visible).map(i => i.querySelector('input').value));
-            level.querySelector('.category-summary').textContent =
-                level.dataset.label + ': ' + (ticked.length === 0 ? 'tutte' : ticked.length + ' selezionat' + (ticked.length === 1 ? 'a' : 'e'));
-            level.querySelector('button').classList.toggle('btn-outline-secondary', ticked.length === 0);
-            level.querySelector('button').classList.toggle('btn-secondary', ticked.length > 0);
+            const text = ticked.length === 0 ? 'tutte' : ticked.length + ' selezionat' + (ticked.length === 1 ? 'a' : 'e');
+            level.querySelector('.category-summary').textContent = level.dataset.label + ': ' + text;
+            if (ticked.length) parts.push(level.dataset.label + ' ' + ticked.length);
         });
+        document.getElementById('categorySummary').textContent = parts.length ? parts.join(' · ') : 'tutte';
     }
 
     levels.forEach(level => {
