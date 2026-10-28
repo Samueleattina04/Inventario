@@ -82,8 +82,8 @@
 </div>
 
 @if($count > 0)
-{{-- Filters --}}
-<div class="card border-0 shadow-sm mb-3">
+{{-- Filters (above the table's sticky header so the category dropdowns are not covered) --}}
+<div class="card border-0 shadow-sm mb-3 position-relative" style="z-index:1030;">
     <div class="card-body py-2">
         <form method="GET" action="{{ route('admin.esolver-detail.index') }}" class="d-flex align-items-center gap-2 flex-wrap">
             <input type="hidden" name="filter" value="{{ $filter }}">
