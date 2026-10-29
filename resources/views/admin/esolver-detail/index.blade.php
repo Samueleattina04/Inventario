@@ -255,7 +255,7 @@
         const param = level.dataset.param;
         const chosen = new Set(selected[param] || []);
         level.querySelector('.category-list').innerHTML = (options[param] || []).map(o => `
-            <label class="form-check d-block small mb-1 category-item" data-parent="${esc(o.parent)}" data-name="${esc(o.name).toLowerCase()}">
+            <label class="form-check small mb-1 category-item" data-parent="${esc(o.parent)}" data-name="${esc(o.name + ' ' + o.code).toLowerCase()}">
                 <input class="form-check-input" type="checkbox" name="${param}[]" value="${esc(o.code)}" ${chosen.has(o.code) ? 'checked' : ''}>
                 <span class="form-check-label">${esc(o.name)}</span>
             </label>`).join('');
@@ -286,10 +286,13 @@
 
     levels.forEach(level => {
         level.querySelector('.category-list').addEventListener('change', refresh);
-        level.querySelector('.category-search').addEventListener('input', e => {
-            const q = e.target.value.trim().toLowerCase();
-            items(level).forEach(i => i.style.display = (!q || i.dataset.name.includes(q)) ? '' : 'none');
+        // Live filter while typing; Enter must not submit the form (that would reload the page)
+        const search = level.querySelector('.category-search');
+        search.addEventListener('input', () => {
+            const words = search.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+            items(level).forEach(i => i.style.display = words.every(w => i.dataset.name.includes(w)) ? '' : 'none');
         });
+        search.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
         const visibleInputs = () => items(level)
             .filter(i => !i.classList.contains('d-none') && i.style.display !== 'none')
             .map(i => i.querySelector('input'));
