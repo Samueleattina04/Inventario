@@ -27,16 +27,17 @@ class EsolverDetailController extends Controller
         'famiglia'      => 'famiglia_code',
     ];
 
-    private function buildRows(string $magFilter, array $warehouseCodeMap, $magMap): \Illuminate\Support\Collection
+    /** @param array $mags Esolver mag codes to include; empty = all */
+    private function buildRows(array $mags, array $warehouseCodeMap, $magMap): \Illuminate\Support\Collection
     {
-        $allMags = ($magFilter === 'all');
+        $allMags = empty($mags);
 
         // --- Esolver: aggregate by mag+article (lot codes differ from inventory, can't match) ---
         $esolverQuery = EsolverDetail::selectRaw(
             'mag, article_code, MAX(description) as description, MAX(um) as um, SUM(quantity) as esolver_qty'
         )->groupBy('mag', 'article_code');
         if (!$allMags) {
-            $esolverQuery->where('mag', $magFilter);
+            $esolverQuery->whereIn('mag', $mags);
         }
         $esolverAgg = $esolverQuery->get()
             ->keyBy(fn($r) => $r->mag . '||' . $r->article_code);
@@ -46,7 +47,7 @@ class EsolverDetailController extends Controller
             'mag, article_code, lot, SUM(quantity) as esolver_lot_qty'
         )->groupBy('mag', 'article_code', 'lot');
         if (!$allMags) {
-            $esolverLotsQuery->where('mag', $magFilter);
+            $esolverLotsQuery->whereIn('mag', $mags);
         }
         $esolverLots = $esolverLotsQuery->get()
             ->groupBy(fn($r) => $r->mag . '||' . $r->article_code);
@@ -57,9 +58,9 @@ class EsolverDetailController extends Controller
             ->groupBy('warehouse_id', 'article_code', 'lot');
 
         if (!$allMags) {
-            $magWarehouseId = array_search($magFilter, $warehouseCodeMap);
-            if ($magWarehouseId !== false) {
-                $countsQuery->where('warehouse_id', $magWarehouseId);
+            $magWarehouseIds = array_keys(array_intersect($warehouseCodeMap, $mags));
+            if ($magWarehouseIds) {
+                $countsQuery->whereIn('warehouse_id', $magWarehouseIds);
             } else {
                 $countsQuery->whereRaw('1=0');
             }
@@ -188,6 +189,24 @@ class EsolverDetailController extends Controller
         return $rows->values();
     }
 
+    /**
+     * Selected warehouses (Esolver mag codes) from ?mag[]=..; empty = all.
+     * Accepts the old single value (?mag=01 / ?mag=all). Returns null when no mag was given at all.
+     */
+    private function selectedMags(Request $request): ?array
+    {
+        if (!$request->has('mag')) {
+            return null;
+        }
+        $mags = collect((array) $request->get('mag'))
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => $v !== '')
+            ->unique()
+            ->values()
+            ->all();
+        return in_array('all', $mags, true) ? [] : $mags;
+    }
+
     /** Distinct category paths, one row per famiglia (~300 rows) */
     private function categoryTree(): \Illuminate\Support\Collection
     {
@@ -281,7 +300,7 @@ class EsolverDetailController extends Controller
 
         $rows      = collect();
         $filter     = $request->get('filter', 'diff');
-        $magFilter  = $request->get('mag', '');
+        $magFilter  = $this->selectedMags($request);
         $search     = trim($request->get('search', ''));
         $searchDesc = trim($request->get('search_desc', ''));
         $totalRows  = 0;
@@ -291,8 +310,9 @@ class EsolverDetailController extends Controller
             $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
             $availableMags    = EsolverDetail::distinct()->orderBy('mag')->pluck('mag');
 
-            if ($magFilter === '' && $availableMags->isNotEmpty()) {
-                $magFilter = $availableMags->first();
+            // First visit: start from the first warehouse only (all of them can be slow)
+            if ($magFilter === null) {
+                $magFilter = $availableMags->isNotEmpty() ? [$availableMags->first()] : [];
             }
 
             $rows = $this->filterRows($this->buildRows($magFilter, $warehouseCodeMap, $magMap), $request, $filter);
@@ -311,6 +331,7 @@ class EsolverDetailController extends Controller
 
         $availableMags = $availableMags ?? collect();
         $magMap        = $magMap ?? collect();
+        $magFilter     = $magFilter ?? [];
 
         // Category options for the cascading multi-select: per level, [code, name, parent code]
         $categoryCount   = ArticleCategory::count();
@@ -331,7 +352,7 @@ class EsolverDetailController extends Controller
 
         // Current filters, merged into every link so changing one filter keeps the others
         $query = array_merge(
-            ['mag' => $magFilter, 'filter' => $filter, 'search' => $search, 'search_desc' => $searchDesc],
+            ['mag' => $magFilter ?: ['all'], 'filter' => $filter, 'search' => $search, 'search_desc' => $searchDesc],
             array_filter($categoryFilter)
         );
 
@@ -470,9 +491,9 @@ class EsolverDetailController extends Controller
             return back()->with('error', 'Nessun dato Esolver APP caricato.');
         }
 
-        $magFilter        = $request->get('mag', 'all');
+        $magFilter        = $this->selectedMags($request) ?? [];
         $filter           = $request->get('filter', 'all');
-        $allMags          = ($magFilter === 'all');
+        $allMags          = empty($magFilter);
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');
 
@@ -482,7 +503,7 @@ class EsolverDetailController extends Controller
         $esolverLotsQuery = EsolverDetail::selectRaw('mag, article_code, lot, SUM(quantity) as esolver_lot_qty')
             ->groupBy('mag', 'article_code', 'lot');
         if (!$allMags) {
-            $esolverLotsQuery->where('mag', $magFilter);
+            $esolverLotsQuery->whereIn('mag', $magFilter);
         }
         $esolverLots = $esolverLotsQuery->get()
             ->groupBy(fn($r) => $r->mag . '||' . $r->article_code);
@@ -558,7 +579,7 @@ class EsolverDetailController extends Controller
             return back()->with('error', 'Nessun dato Esolver APP caricato.');
         }
 
-        $magFilter        = $request->get('mag', 'all');
+        $magFilter        = $this->selectedMags($request) ?? [];
         $filter           = $request->get('filter', 'all');
         $warehouseCodeMap = Warehouse::pluck('code', 'id')->toArray();
         $magMap           = Warehouse::pluck('name', 'code');

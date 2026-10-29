@@ -87,15 +87,19 @@
     <div class="card-body py-2">
         <form method="GET" action="{{ route('admin.esolver-detail.index') }}" class="d-flex align-items-center gap-2 flex-wrap">
             <input type="hidden" name="filter" value="{{ $filter }}">
-            <label class="text-muted small mb-0">Magazzino:</label>
-            <select name="mag" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
-                <option value="all" {{ $magFilter === 'all' ? 'selected' : '' }}>Tutti i magazzini</option>
-                @foreach($availableMags as $mag)
-                    <option value="{{ $mag }}" {{ $magFilter === $mag ? 'selected' : '' }}>
-                        {{ $mag }}{{ isset($magMap[$mag]) ? ' — ' . $magMap[$mag] : '' }}
-                    </option>
-                @endforeach
-            </select>
+            <span class="text-muted small">Magazzino:</span>
+            <button type="button" id="magToggle" class="btn btn-sm btn-outline-secondary"
+                    data-bs-toggle="collapse" data-bs-target="#magPanel" aria-expanded="false">
+                <i class="bi bi-chevron-down me-1"></i><span id="magSummary">
+                    @if(empty($magFilter))
+                        Tutti i magazzini
+                    @elseif(count($magFilter) === 1)
+                        {{ $magFilter[0] }}{{ isset($magMap[$magFilter[0]]) ? ' — ' . $magMap[$magFilter[0]] : '' }}
+                    @else
+                        {{ count($magFilter) }} magazzini
+                    @endif
+                </span>
+            </button>
             <div class="vr"></div>
             <span class="text-muted small">Stato:</span>
             @foreach(['all'=>'Tutti','diff'=>'Solo differenze','only_count'=>'Solo in conta','only_esolver'=>'Solo in Esolver'] as $val => $label)
@@ -124,6 +128,30 @@
                class="btn btn-sm btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Esporta Excel
             </a>
+
+            {{-- Warehouse multi-select (inline panel, like the categories) --}}
+            <div class="collapse w-100" id="magPanel">
+                <div class="border rounded p-2 mt-1 bg-light">
+                    <div class="d-flex gap-1 mb-2 flex-wrap align-items-center">
+                        <input type="text" id="magSearch" class="form-control form-control-sm" style="max-width:220px;" placeholder="Filtra magazzini…">
+                        <button type="button" class="btn btn-sm btn-outline-primary py-0" id="magAll">Tutti</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="magNone">Nessuno</button>
+                        <button type="submit" class="btn btn-sm btn-primary py-0 ms-auto"><i class="bi bi-funnel me-1"></i>Applica</button>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1" id="magList">
+                        @foreach($availableMags as $mag)
+                            @php $magLabel = $mag . (isset($magMap[$mag]) ? ' — ' . $magMap[$mag] : ''); @endphp
+                            <label class="form-check small bg-white border rounded px-2 py-1 mb-0 mag-item" style="min-width:200px;"
+                                   data-name="{{ strtolower($magLabel) }}">
+                                <input class="form-check-input ms-0 me-1" type="checkbox" name="mag[]" value="{{ $mag }}"
+                                       {{ (empty($magFilter) || in_array($mag, $magFilter, true)) ? 'checked' : '' }}>
+                                <span class="form-check-label">{{ $magLabel }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                    <div class="small text-muted mt-1">Nessuna spunta = tutti i magazzini. Premi <strong>Applica</strong> per aggiornare.</div>
+                </div>
+            </div>
 
             @if(!empty($categoryOptions['settore']))
             @php $categoryActive = collect($categoryFilter)->flatten()->isNotEmpty(); @endphp
@@ -301,6 +329,43 @@
     });
 
     refresh();
+})();
+
+(() => {
+    const list = document.getElementById('magList');
+    if (!list) return;
+    const items   = [...list.querySelectorAll('.mag-item')];
+    const boxes   = () => items.map(i => i.querySelector('input'));
+    const shown   = () => items.filter(i => i.style.display !== 'none').map(i => i.querySelector('input'));
+    const summary = document.getElementById('magSummary');
+
+    function refresh() {
+        const ticked = boxes().filter(b => b.checked);
+        summary.textContent = (ticked.length === 0 || ticked.length === items.length)
+            ? 'Tutti i magazzini'
+            : ticked.length === 1 ? ticked[0].closest('label').textContent.trim() : ticked.length + ' magazzini';
+    }
+
+    const search = document.getElementById('magSearch');
+    search.addEventListener('input', () => {
+        const words = search.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        items.forEach(i => i.style.display = words.every(w => i.dataset.name.includes(w)) ? '' : 'none');
+    });
+    search.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+    document.getElementById('magAll').addEventListener('click', () => { shown().forEach(b => b.checked = true); refresh(); });
+    document.getElementById('magNone').addEventListener('click', () => { shown().forEach(b => b.checked = false); refresh(); });
+    list.addEventListener('change', refresh);
+
+    // All ticked, or none ticked, both mean "all warehouses"
+    list.closest('form').addEventListener('submit', () => {
+        const ticked = boxes().filter(b => b.checked);
+        if (ticked.length === 0 || ticked.length === items.length) {
+            boxes().forEach(b => b.disabled = true);
+            const all = document.createElement('input');
+            all.type = 'hidden'; all.name = 'mag[]'; all.value = 'all';
+            list.appendChild(all);
+        }
+    });
 })();
 </script>
 @endsection
